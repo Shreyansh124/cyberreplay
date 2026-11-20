@@ -111,6 +111,8 @@ def evaluate_model(name: str, pipe: Pipeline, test: pd.DataFrame, features: list
         "recall_macro": recall_score(y, y_pred, average="macro", zero_division=0),
         "f1_macro": f1_score(y, y_pred, average="macro", zero_division=0),
         "f1_weighted": f1_score(y, y_pred, average="weighted", zero_division=0),
+        # Rare has only 9 test rows, so one flow moves its F1 by ~0.1; report macro F1 without it too.
+        "f1_macro_excl_rare": float(report.drop(index="Rare")["f1"].mean()),
         "minority_recall": float(report.loc[MINORITY_CLASSES, "recall"].mean()),
         "benign_fpr": benign_false_positive_rate(y, y_pred),
         "binary_accuracy": accuracy_score(yb, pb),
@@ -140,8 +142,8 @@ def save_evaluation(results: dict[str, dict]) -> pd.DataFrame:
         tables (CSV + Markdown) and ``test_metrics.json`` in ``reports/results``.
     """
     comp = pd.DataFrame([r["metrics"] for r in results.values()]).set_index("model")
-    main_cols = ["accuracy", "precision_macro", "recall_macro", "f1_macro", "minority_recall", "benign_fpr",
-                 "train_time_s", "inference_time_s", "inference_us_per_flow"]
+    main_cols = ["accuracy", "precision_macro", "recall_macro", "f1_macro", "f1_macro_excl_rare",
+                 "minority_recall", "benign_fpr", "train_time_s", "inference_time_s", "inference_us_per_flow"]
     save_table(comp[main_cols], "test_comparison")
     save_table(comp[["binary_accuracy", "binary_precision", "binary_recall", "binary_f1", "benign_fpr"]],
                "test_binary_comparison")
@@ -153,6 +155,54 @@ def save_evaluation(results: dict[str, dict]) -> pd.DataFrame:
     save_table(pd.DataFrame({n: r["report"]["recall"] for n, r in results.items()}), "per_class_recall")
     save_json({n: r["metrics"] for n, r in results.items()}, config.RESULTS_DIR / "test_metrics.json")
     return comp
+
+
+def _macro_f1_from_codes(y: np.ndarray, p: np.ndarray, k: int) -> float:
+    """Fast macro F1 from integer labels via a bincount confusion matrix."""
+    cm = np.bincount(y * k + p, minlength=k * k).reshape(k, k)
+    tp = np.diag(cm).astype(float)
+    denom = cm.sum(axis=0) + cm.sum(axis=1)
+    f1 = np.divide(2 * tp, denom, out=np.zeros(k), where=denom > 0)
+    return float(f1.mean())
+
+
+def bootstrap_f1(results: dict[str, dict], test: pd.DataFrame, n_boot: int = 300,
+                 seed: int = config.SEED) -> pd.DataFrame:
+    """Bootstrap 95% confidence intervals of test macro F1 (paired resamples for all models).
+
+    Args:
+        results: ``{model: evaluate_model output}``.
+        test: Test split (true labels).
+        n_boot: Number of bootstrap resamples of the test rows.
+        seed: Random seed.
+
+    Returns:
+        Table per model: macro F1, CI bounds, mean paired difference to the best
+        model and the share of resamples in which the best model scores higher.
+
+    Side effects:
+        Writes ``reports/results/test_bootstrap_ci.{csv,md}``.
+    """
+    y = encode_target(test[config.TARGET_COL])
+    k = len(config.CLASS_ORDER)
+    rng = np.random.default_rng(seed)
+    names = list(results)
+    scores = np.zeros((n_boot, len(names)))
+    for b in range(n_boot):
+        idx = rng.integers(0, len(y), len(y))
+        for j, n in enumerate(names):
+            scores[b, j] = _macro_f1_from_codes(y[idx], results[n]["y_pred"][idx], k)
+    point = np.array([results[n]["metrics"]["f1_macro"] for n in names])
+    best = int(np.argmax(point))
+    out = pd.DataFrame({
+        "f1_macro": point,
+        "ci95_low": np.percentile(scores, 2.5, axis=0),
+        "ci95_high": np.percentile(scores, 97.5, axis=0),
+        "diff_to_best_mean": (scores - scores[:, [best]]).mean(axis=0),
+        "share_best_higher": (scores[:, [best]] > scores).mean(axis=0),
+    }, index=pd.Index(names, name="model"))
+    save_table(out, "test_bootstrap_ci")
+    return out
 
 
 def choose_best(comp: pd.DataFrame, tolerance: float = 0.005) -> tuple[str, str]:

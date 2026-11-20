@@ -155,6 +155,8 @@ def stage_evaluate(fitted: dict, test: pd.DataFrame, feats: list[str]) -> tuple[
     """Evaluate every fitted model on the test split and draw the comparison figures."""
     results = {n: evaluate.evaluate_model(n, p, test, feats, t) for n, (p, t) in fitted.items()}
     comp = evaluate.save_evaluation(results)
+    ci = evaluate.bootstrap_f1(results, test)
+    print(ci.round(4).to_string())
     evaluate.plot_confusion_matrices(results)
     evaluate.plot_comparison(comp)
     evaluate.plot_per_class_f1(results)
@@ -238,6 +240,7 @@ def stage_replay(pipe, feats: list[str], sample: pd.DataFrame) -> pd.DataFrame:
     for c in pivot.columns:
         ax.bar(x, pivot[c].values, bottom=bottom, color=eda.FAMILY_COLORS[c], label=c, width=1.0)
         bottom += pivot[c].values
+    ax.set_ylim(0, bottom.max() * 1.08)
     ticks = [np.argmax(pivot.index.normalize() == d) for d in days]
     ax.set_xticks(ticks, [d.strftime("%a %d %b") for d in days])
     ax.set_ylabel("flows / 5 min (predicted)")

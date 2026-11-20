@@ -310,8 +310,11 @@ def compare_phrase(value: float, reference: float) -> str:
     """Describe a value relative to a benign reference ("much higher than", ...)."""
     if not np.isfinite(value) or not np.isfinite(reference):
         return "differs from"
-    if reference == 0:
-        return "is above the benign median of" if value > 0 else ("is below" if value < 0 else "equals")
+    if np.isclose(value, reference):
+        return "is close to"
+    if reference <= 0 or value < 0:
+        # Ratios are meaningless around zero / the -1 sentinel; compare directly.
+        return "is higher than" if value > reference else "is lower than"
     ratio = value / reference
     if ratio >= 3:
         return "is much higher than"
