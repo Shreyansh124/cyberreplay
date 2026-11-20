@@ -209,7 +209,7 @@ Intrusion Traffic Characterization", ICISSP 2018, pp. 108-116.
 raw = pipeline.stage_load(config.DATA_DIR, download=True)
 display(data.describe_files(config.DATA_DIR))
 print(raw.shape)
-raw.head(3)
+raw.iloc[:3, :12]  # first columns only; the full frame has 87
 """)
     obs("load")
 
@@ -390,7 +390,8 @@ test split (440k flows). Training time is the wall-clock fit time; inference tim
 fit_train = train if FINAL_FIT_ROWS is None else features.stratified_sample(train, FINAL_FIT_ROWS)
 fitted = pipeline.stage_fit(fit_train, FEATURES, tuned, force=FORCE_RECOMPUTE)
 results, comparison = pipeline.stage_evaluate(fitted, test, FEATURES)
-display(comparison[["accuracy", "precision_macro", "recall_macro", "f1_macro", "minority_recall", "benign_fpr",
+display(comparison[["accuracy", "precision_macro", "recall_macro", "f1_macro", "f1_macro_excl_rare",
+                    "minority_recall", "benign_fpr",
                     "train_time_s", "inference_time_s", "inference_us_per_flow"]])
 """)
     code("""
@@ -412,6 +413,7 @@ display(comparison[["binary_accuracy", "binary_precision", "binary_recall", "bin
     obs("comparison")
     md("## 9. Choosing the final model")
     code("""
+display(pd.read_csv(config.RESULTS_DIR / "test_bootstrap_ci.csv", index_col=0))
 best, why = evaluate.choose_best(comparison)
 print(why)
 pipeline.stage_save_best(best, why, fitted, comparison, train, FEATURES, tuned)

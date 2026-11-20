@@ -307,7 +307,7 @@ with tab_explain:
         fams = [f for f in config.CLASS_ORDER if f in set(detected["predicted"])]
         ec1, ec2 = st.columns([1, 2])
         fam = ec1.selectbox("Detected family", fams)
-        cand = detected[detected["predicted"] == fam]
+        cand = detected[detected["predicted"] == fam].sort_values("confidence", ascending=False, kind="stable")
         options = cand.index[:500].tolist()
 
         def describe(i: int) -> str:

@@ -23,13 +23,16 @@ from __future__ import annotations
 
 import argparse
 import platform
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
 import matplotlib
 
-matplotlib.use("Agg")
+# Headless backend for the CLI only; inside Jupyter the inline backend must stay active.
+if "ipykernel" not in sys.modules:
+    matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402

@@ -18,6 +18,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import markdown
@@ -48,8 +49,13 @@ code { font-size: 8.5pt; }
 
 
 def find_chrome() -> str:
-    """Return the path of a headless-capable Chrome/Chromium binary."""
-    for name in ("google-chrome", "chromium", "chromium-browser", "chrome"):
+    """Return the path of a headless-capable Chrome/Chromium binary.
+
+    The real binaries are preferred over ``google-chrome`` because that name is
+    often a wrapper script that pins a shared profile, which blocks headless printing.
+    """
+    for name in ("/opt/google/chrome/chrome", "google-chrome-stable", "chromium", "chromium-browser",
+                 "google-chrome", "chrome"):
         path = shutil.which(name)
         if path:
             return path
@@ -66,9 +72,11 @@ def html_to_pdf(html_path: Path, pdf_path: Path) -> int:
     Returns:
         Number of pages in the PDF.
     """
-    subprocess.run([find_chrome(), "--headless=new", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
-                    "--allow-file-access-from-files", f"--print-to-pdf={pdf_path}", html_path.resolve().as_uri()],
-                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+    with tempfile.TemporaryDirectory() as profile:
+        subprocess.run([find_chrome(), "--headless=new", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
+                        "--no-first-run", f"--user-data-dir={profile}", "--allow-file-access-from-files",
+                        "--virtual-time-budget=20000", f"--print-to-pdf={pdf_path}", html_path.resolve().as_uri()],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
     return len(PdfReader(str(pdf_path)).pages)
 
 

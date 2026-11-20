@@ -35,3 +35,15 @@ choice made by the build agent, with the reason.
 | D16 | Inference time = wall-clock `predict` on the full test split (439,956 flows) in one process; training time = wall-clock fit on the full training split (1,759,824 flows). | Comparable, reproducible timing for all four models on the same 8-CPU VM. |
 | D17 | SHAP: `TreeExplainer` on a stratified test subsample (max 250 rows per family, all rare rows), explaining the best model. | Exact tree SHAP on ~2k rows is fast and covers every family. |
 | D18 | PDFs are produced with Markdown -> HTML -> headless Chrome (`scripts/build_pdfs.py`). | No LaTeX on the VM; Chrome gives consistent A4 output. |
+| D19 | All four final models were fitted on the **full** training split (no subset needed); the best pipeline is saved with joblib xz compression (about 5.5 MB) and committed. The other three fitted models stay in the gitignored `models/cache/` (regenerate with `python -m cyberreplay.pipeline`). | Every model trained in <= 4 minutes; the artefact is far below the 50 MB limit. |
+| D20 | Test macro F1 is reported with a paired bootstrap 95% CI (300 resamples) and also without the Rare class. | Rare has only 9 test flows; one flow changes its F1 by ~0.1, so point estimates alone would over-state differences between models. |
+| D21 | BENIGN -> Bot errors are counted as errors although 158 of 202 go to the Ares C&C server 205.174.165.73:8080. | Re-labelling the data would be a deviation from the dataset; the observation is reported as a label-quality limitation (Engelen et al., 2021). |
+| D22 | The notebook reuses cached CV/tuning results and fitted models produced by the CLI run with identical code (`FORCE_RECOMPUTE = False`); on the VM it was executed end to end in ~2.5 minutes. The tuning numbers it shows are the ones computed by `python -m cyberreplay.pipeline --force` (log: `reports/logs/full_run.log`, 41.5 min). | Avoids repeating a 40-minute search inside the notebook while keeping one code path; setting `FORCE_RECOMPUTE = True` recomputes everything in the notebook. |
+| D23 | The Colab cell installs the pinned `requirements.txt` and restarts the runtime automatically if NumPy/pandas/SciPy versions changed. | Pinned versions (pandas 3.1, NumPy 2.5) are newer than Colab's preinstalled ones; a restart is required after upgrading compiled packages. |
+
+## Deviations from the agreed decisions
+
+None of the binding decisions were changed. Two interpretations are worth flagging:
+- **Destination Port excluded** (D6) - the skill says "ports used as IDs"; both ports were treated as identifiers.
+- **Class-weight strength tuned** (D12) - all models still use class weights (no resampling); the search could choose the
+  square root of the balanced weights, which Logistic Regression did (the tree models kept fully balanced weights).

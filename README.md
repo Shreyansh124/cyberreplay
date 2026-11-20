@@ -7,7 +7,21 @@ Brute Force, Web Attack, Rare), derives a binary `is_malicious` flag from the pr
 Regression, Decision Tree, Random Forest and XGBoost, explains detections with SHAP and replays the captured
 traffic through a Streamlit dashboard with live predictions.
 
-<!-- RESULTS -->
+## Results (held-out test split, 439,956 flows)
+
+| Model | Accuracy | Macro precision | Macro recall | Macro F1 | BENIGN false-positive rate | Train time (1.76 M flows) | Inference (440k flows) |
+|---|---|---|---|---|---|---|---|
+| Logistic Regression | 0.9828 | 0.6497 | 0.8804 | 0.7147 | 1.64% | 231 s | 0.30 s |
+| Decision Tree | 0.9988 | 0.8781 | 0.9140 | 0.8950 | 0.10% | 32 s | 0.09 s |
+| **Random Forest** (final) | 0.9989 | 0.9360 | 0.9329 | **0.9206** | 0.11% | 92 s | 0.50 s |
+| XGBoost | 0.9990 | 0.9111 | 0.9296 | 0.9117 | 0.11% | 62 s | 1.39 s |
+
+Random Forest is the final model: best macro F1 (95% bootstrap CI 0.864-0.947, ahead of XGBoost in 99% of paired
+resamples), best minority-class recall (0.893), 0.11% BENIGN false alarms and ~1.1 µs per flow. The derived binary
+`is_malicious` reaches F1 0.9965 (precision 0.9938, recall 0.9993). Full tables: `reports/results/`; discussion:
+`reports/report.pdf`.
+
+![Dashboard - live replay](reports/figures/dashboard_live_replay.png)
 
 ## Repository layout
 
@@ -66,8 +80,8 @@ jupyter nbconvert --to notebook --execute --inplace notebooks/CyberReplay.ipynb 
 python scripts/build_pdfs.py           # reports/report.pdf + reports/notebook.pdf (needs Chrome/Chromium)
 ```
 
-A full run with `--force` takes about 1.5 hours on 8 CPUs / 47 GB RAM (no GPU). Without `--force`, the
-committed tuning results in `reports/results/best_params_*.json` are reused and only the final fits run.
+A full run with `--force` took 42 minutes on 8 CPUs / 47 GB RAM (no GPU). Without `--force`, the committed
+tuning results in `reports/results/best_params_*.json` are reused and only the final fits run (a few minutes).
 
 **Regenerating the model.** `models/best_model.joblib` is committed (it is small). If it is missing, the one
 command `PYTHONPATH=src python -m cyberreplay.pipeline --download` recreates it (plus its metadata).
