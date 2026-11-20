@@ -209,6 +209,41 @@ def load_raw(data_dir: Path | str | None = None, use_cache: bool = True,
     return df
 
 
+def prepare_external(df: pd.DataFrame) -> pd.DataFrame:
+    """Make an arbitrary CIC-IDS2017-style CSV (sample or user upload) pipeline-ready.
+
+    Strips header whitespace, drops duplicated columns, normalises labels when
+    present, parses timestamps (ISO strings from the sample, or the original
+    CIC format) and adds row-order metadata if missing.
+
+    Args:
+        df: Flows as read from CSV.
+
+    Returns:
+        Prepared copy.
+    """
+    from .clean import add_labels  # local import: clean imports nothing from data at module level
+
+    df = df.copy()
+    df.columns = [c.strip() for c in df.columns]
+    df = df.loc[:, ~df.columns.duplicated()]
+    if config.RAW_LABEL_COL in df.columns:
+        df = df[df[config.RAW_LABEL_COL].notna()]
+        df = add_labels(df)
+    if config.TIMESTAMP_COL in df.columns:
+        ts = pd.to_datetime(df[config.TIMESTAMP_COL], errors="coerce", format="ISO8601")
+        if ts.isna().all():
+            ts = parse_timestamps(df[config.TIMESTAMP_COL])
+        df[config.TIMESTAMP_COL] = ts
+    else:
+        df[config.TIMESTAMP_COL] = pd.NaT
+    if config.DAY_ORDER_COL not in df.columns:
+        df[config.DAY_ORDER_COL] = 0
+    if config.ROW_ORDER_COL not in df.columns:
+        df[config.ROW_ORDER_COL] = np.arange(len(df))
+    return df.reset_index(drop=True)
+
+
 def describe_files(data_dir: Path | str | None = None) -> pd.DataFrame:
     """Summarise the day files (size on disk) for the dataset description.
 

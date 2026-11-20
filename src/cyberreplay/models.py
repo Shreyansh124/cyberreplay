@@ -1,11 +1,13 @@
 """The four Track A classifiers as leakage-safe sklearn Pipelines (pipeline stage 5).
 
 Each pipeline = ``ColumnSelector -> SimpleImputer [-> clip -> log -> scale] -> model``.
-Imbalance is handled with class weights (no SMOTE):
-    * LogisticRegression / DecisionTree: ``class_weight="balanced"``
-    * RandomForest: ``"balanced"`` or ``"balanced_subsample"`` (tuned)
-    * XGBoost: per-row sample weights computed inside ``WeightedXGBClassifier``
-      from the labels it is fitted on (so every CV fold gets its own weights).
+Imbalance is handled with class weights (no SMOTE). Each model is a thin
+subclass/wrapper that turns a ``class_weighting`` hyperparameter
+("balanced" = n / (k * count_c), or its square root "sqrt") into per-row
+sample weights inside ``fit``. Weights are therefore computed from the rows
+each CV fold trains on, and the weighting strength is tuned like any other
+hyperparameter (fully balanced weights make the linear model flag ~12% of
+BENIGN flows as attacks, see DECISIONS.md).
 
 The search spaces for RandomizedSearchCV (step 7) are defined next to the
 models so names stay consistent.
@@ -114,8 +116,61 @@ class WeightedXGBClassifier(BaseEstimator, ClassifierMixin):
         return self.model_.feature_importances_
 
 
+class WeightedLogisticRegression(LogisticRegression):
+    """Multinomial Logistic Regression with a tunable class-weighting strength.
+
+    ``class_weighting`` ("balanced" or "sqrt") is turned into per-row sample
+    weights inside ``fit``, so each CV fold computes weights from its own
+    training rows only.
+    """
+
+    def __init__(self, C: float = 1.0, tol: float = 1e-4, max_iter: int = 1000, solver: str = "lbfgs",
+                 class_weighting: str = "balanced", random_state: int = config.SEED):
+        super().__init__(C=C, tol=tol, max_iter=max_iter, solver=solver, random_state=random_state)
+        self.class_weighting = class_weighting
+
+    def fit(self, X, y, sample_weight=None):
+        """Fit with class-balancing sample weights (``sample_weight`` is ignored)."""
+        return super().fit(X, y, sample_weight=weights_for(np.asarray(y), self.class_weighting))
+
+
+class WeightedDecisionTree(DecisionTreeClassifier):
+    """CART decision tree with a tunable class-weighting strength (see ``weights_for``)."""
+
+    def __init__(self, criterion: str = "gini", max_depth: int | None = None, min_samples_split: int = 2,
+                 min_samples_leaf: int = 1, max_features=None, class_weighting: str = "balanced",
+                 random_state: int = config.SEED):
+        super().__init__(criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
+                         min_samples_leaf=min_samples_leaf, max_features=max_features, random_state=random_state)
+        self.class_weighting = class_weighting
+
+    def fit(self, X, y, sample_weight=None, check_input=True):
+        """Fit with class-balancing sample weights (``sample_weight`` is ignored)."""
+        return super().fit(X, y, sample_weight=weights_for(np.asarray(y), self.class_weighting),
+                           check_input=check_input)
+
+
+class WeightedRandomForest(RandomForestClassifier):
+    """Random Forest with a tunable class-weighting strength (see ``weights_for``)."""
+
+    def __init__(self, n_estimators: int = 100, criterion: str = "gini", max_depth: int | None = None,
+                 min_samples_leaf: int = 1, max_features="sqrt", class_weighting: str = "balanced",
+                 n_jobs: int = config.N_JOBS, random_state: int = config.SEED):
+        super().__init__(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth,
+                         min_samples_leaf=min_samples_leaf, max_features=max_features, n_jobs=n_jobs,
+                         random_state=random_state)
+        self.class_weighting = class_weighting
+
+    def fit(self, X, y, sample_weight=None):
+        """Fit with class-balancing sample weights (``sample_weight`` is ignored)."""
+        return super().fit(X, y, sample_weight=weights_for(np.asarray(y), self.class_weighting))
+
+
 def make_estimator(name: str, **params):
     """Instantiate one of the four classifiers with the project defaults.
+
+    Every model starts from fully balanced class weights; the search may soften
+    them to their square root (``class_weighting="sqrt"``).
 
     Args:
         name: One of ``config.MODEL_NAMES``.
@@ -124,18 +179,12 @@ def make_estimator(name: str, **params):
     Returns:
         Unfitted estimator.
     """
-    seed = config.SEED
     if name == "LogisticRegression":
-        base = dict(C=1.0, class_weight="balanced", solver="lbfgs", max_iter=1000, tol=1e-4,
-                    random_state=seed)
-        return LogisticRegression(**{**base, **params})
+        return WeightedLogisticRegression(**params)
     if name == "DecisionTree":
-        base = dict(class_weight="balanced", random_state=seed)
-        return DecisionTreeClassifier(**{**base, **params})
+        return WeightedDecisionTree(**params)
     if name == "RandomForest":
-        base = dict(n_estimators=100, class_weight="balanced_subsample", n_jobs=config.N_JOBS,
-                    random_state=seed)
-        return RandomForestClassifier(**{**base, **params})
+        return WeightedRandomForest(**params)
     if name == "XGBoost":
         base = dict(n_estimators=100, max_depth=6, learning_rate=0.3, subsample=1.0, colsample_bytree=1.0)
         return WeightedXGBClassifier(**{**base, **params})
@@ -170,6 +219,7 @@ def search_space(name: str) -> dict:
         "LogisticRegression": {
             "C": loguniform(1e-2, 1e3),
             "tol": [1e-4, 1e-3],
+            "class_weighting": ["balanced", "sqrt"],
         },
         "DecisionTree": {
             "criterion": ["gini", "entropy"],
@@ -177,13 +227,14 @@ def search_space(name: str) -> dict:
             "min_samples_split": randint(2, 21),
             "min_samples_leaf": randint(1, 11),
             "max_features": [None, "sqrt", 0.5, 0.8],
+            "class_weighting": ["balanced", "sqrt"],
         },
         "RandomForest": {
             "n_estimators": [100, 150, 200],
             "max_depth": [None, 20, 30, 40],
             "min_samples_leaf": [1, 2, 4],
             "max_features": ["sqrt", 0.3, 0.5],
-            "class_weight": ["balanced", "balanced_subsample"],
+            "class_weighting": ["balanced", "sqrt"],
             "criterion": ["gini", "entropy"],
         },
         "XGBoost": {
