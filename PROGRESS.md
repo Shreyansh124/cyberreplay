@@ -10,9 +10,9 @@ Resume from the first unticked sub-phase. Each completed phase is committed as
 - [x] 0.4 `config.py` (paths, seed, label map, constants)
 
 ## Phase 1 - Problem + dataset (`data.py`)
-- [ ] 1.1 Download helper (mirror URL, SHA-256 check, unzip, folder-name fix)
-- [ ] 1.2 Loader: latin-1, strip columns, drop empty rows / duplicate column, day + row order
-- [ ] 1.3 Timestamp parsing (day-first, 12-hour fix) + parquet cache
+- [x] 1.1 Download helper (mirror URL, SHA-256 check, unzip, folder-name fix)
+- [x] 1.2 Loader: latin-1, strip columns, drop empty rows / duplicate column, day + row order
+- [x] 1.3 Timestamp parsing (day-first, 12-hour fix) + parquet cache
 
 ## Phase 2 - EDA
 ## Phase 3 - Cleaning
