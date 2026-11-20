@@ -76,7 +76,12 @@ def stage_select(train: pd.DataFrame, candidates: list[str], force: bool = False
     """
     path = config.RESULTS_DIR / "feature_selection.json"
     if path.exists() and not force:
-        return load_json(path)
+        cached = load_json(path)
+        missing = [f for f in cached["selected"] if f not in candidates]
+        if not missing:
+            return cached
+        # e.g. the MachineLearningCSV variant has no Protocol column.
+        print(f"[select] cached selection uses features missing from this data {missing}; recomputing")
     sel = features.select_features(train, candidates)
     save_table(sel["correlated"], "selection_correlated_dropped", index=False)
     save_table(sel["importance"], "selection_importance", index=False)
@@ -150,6 +155,8 @@ def stage_fit(train: pd.DataFrame, feats: list[str], tuned: dict[str, dict], for
     fitted = {}
     for name in config.MODEL_NAMES:
         cached = None if force else evaluate.load_cached(name)
+        if cached and list(cached[0].named_steps["select"].columns) != list(feats):
+            cached = None  # fitted on a different feature set (e.g. another dataset variant)
         fitted[name] = cached or evaluate.fit_final(name, feats, tuned[name]["best_params"], train)
     return fitted
 

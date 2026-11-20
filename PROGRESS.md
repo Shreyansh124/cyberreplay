@@ -57,4 +57,4 @@ Resume from the first unticked sub-phase. Each completed phase is committed as
 ## Phase 16 - Report
 - [x] 16.1 `report.md` -> `report.pdf` (4 pages)
 - [x] 16.2 `notebook.pdf` (39 pages)
-- [ ] 16.3 Pull request
+- [x] 16.3 Pull request

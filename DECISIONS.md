@@ -41,6 +41,9 @@ choice made by the build agent, with the reason.
 | D22 | The notebook reuses cached CV/tuning results and fitted models produced by the CLI run with identical code (`FORCE_RECOMPUTE = False`); on the VM it was executed end to end in ~2.5 minutes. The tuning numbers it shows are the ones computed by `python -m cyberreplay.pipeline --force` (log: `reports/logs/full_run.log`, 41.5 min). | Avoids repeating a 40-minute search inside the notebook while keeping one code path; setting `FORCE_RECOMPUTE = True` recomputes everything in the notebook. |
 | D23 | The Colab cell installs the pinned `requirements.txt` and restarts the runtime automatically if NumPy/pandas/SciPy versions changed. | Pinned versions (pandas 3.1, NumPy 2.5) are newer than Colab's preinstalled ones; a restart is required after upgrading compiled packages. |
 
+| D24 | MachineLearningCSV fallback: chronological order = capture-day file order + row order; approximate timestamps are spread evenly over each file's known capture window (`config.DAY_WINDOWS`). If cached artefacts use a feature the variant lacks (it has no `Protocol`), feature selection and the final fits are recomputed automatically. | The user's Drive copy may be this variant; tested on a reduced copy of the data (synthetic timestamps monotonic, replay and timeline work). Timestamps are never features. |
+| D25 | In Colab the notebook only uses the Drive folder if it contains `*.pcap_ISCX.csv` day files; otherwise it downloads to the local `data/raw/`. | Never writes the 1.5 GB dataset into the user's Drive by accident. |
+
 ## Deviations from the agreed decisions
 
 None of the binding decisions were changed. Two interpretations are worth flagging:

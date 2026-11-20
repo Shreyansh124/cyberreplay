@@ -65,6 +65,19 @@ DAY_FILES: dict[str, tuple[str, int]] = {
     "Friday-WorkingHours-Afternoon-DDos": ("Friday-PM-DDoS", 7),
 }
 
+# Capture window (date, start, end) of each day file. Only used to rebuild
+# approximate timestamps for the MachineLearningCSV variant, which has none.
+DAY_WINDOWS: dict[str, tuple[str, str, str]] = {
+    "Monday": ("2017-07-03", "08:55", "17:02"),
+    "Tuesday": ("2017-07-04", "08:53", "17:00"),
+    "Wednesday": ("2017-07-05", "08:42", "17:10"),
+    "Thursday-AM": ("2017-07-06", "08:59", "12:59"),
+    "Thursday-PM": ("2017-07-06", "13:00", "17:04"),
+    "Friday-AM": ("2017-07-07", "08:59", "12:59"),
+    "Friday-PM-PortScan": ("2017-07-07", "13:00", "15:29"),
+    "Friday-PM-DDoS": ("2017-07-07", "15:30", "17:02"),
+}
+
 # --------------------------------------------------------------------------
 # Columns
 # --------------------------------------------------------------------------

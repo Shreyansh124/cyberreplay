@@ -51,7 +51,9 @@ resamples), best minority-class recall (0.893), 0.11% BENIGN false alarms and ~1
   verified by `data.download_dataset`). The official server (`cicresearch.ca/CICDataset/CIC-IDS-2017/`) now redirects
   to a registration form, so the unattended build could not use it; you can download the same zip there manually.
 * If only the `MachineLearningCSV` variant is available (no Flow ID / IP / Timestamp columns), the loader still works:
-  features are identical and the replay order is rebuilt from the capture-day order plus the row order inside each file.
+  the replay order is rebuilt from the capture-day order plus the row order inside each file, approximate timestamps
+  are spread over each file's capture window, and the feature selection is recomputed because that variant has no
+  `Protocol` column.
 * Raw data is never committed (`data/raw/` is gitignored).
 
 **Citation.** I. Sharafaldin, A. H. Lashkari and A. A. Ghorbani, "Toward Generating a New Intrusion Detection Dataset

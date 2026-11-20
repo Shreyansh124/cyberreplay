@@ -137,6 +137,31 @@ def parse_timestamps(raw: pd.Series) -> pd.Series:
     return parsed
 
 
+def synthetic_timestamps(df: pd.DataFrame) -> pd.Series:
+    """Approximate capture times for the MachineLearningCSV variant (no Timestamp column).
+
+    Chronological *order* is rebuilt from the capture-day file order plus the
+    row order inside each file; rows are then spread evenly over the file's
+    known capture window (``config.DAY_WINDOWS``). The resulting times are
+    approximations for plotting/replay only and are never used as features.
+
+    Args:
+        df: Combined flows with ``day`` and ``row_order``.
+
+    Returns:
+        ``datetime64`` Series aligned with ``df``.
+    """
+    out = pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
+    for day, (date, start, end) in config.DAY_WINDOWS.items():
+        mask = df[config.DAY_COL] == day
+        if not mask.any():
+            continue
+        t0, t1 = pd.Timestamp(f"{date} {start}"), pd.Timestamp(f"{date} {end}")
+        frac = df.loc[mask, config.ROW_ORDER_COL] / max(int(mask.sum()) - 1, 1)
+        out.loc[mask] = t0 + (t1 - t0) * frac.to_numpy()
+    return out
+
+
 def load_day_file(path: Path | str) -> pd.DataFrame:
     """Read one CIC-IDS2017 day CSV into a tidy DataFrame.
 
@@ -194,9 +219,7 @@ def load_raw(data_dir: Path | str | None = None, use_cache: bool = True,
     frames = [load_day_file(f) for f in files]
     df = pd.concat(frames, ignore_index=True)
     if config.TIMESTAMP_COL not in df.columns:
-        # MachineLearningCSV variant: no timestamps. Chronology is rebuilt from
-        # the day order + row order inside each file (documented in the README).
-        df[config.TIMESTAMP_COL] = pd.NaT
+        df[config.TIMESTAMP_COL] = synthetic_timestamps(df)
     # Store measurement columns compactly; float32 keeps ~7 significant digits,
     # ample for flow statistics, and halves memory.
     num_cols = df.select_dtypes(include=["float64", "int64"]).columns.difference(

@@ -145,10 +145,11 @@ DATA_DIR = ROOT / "data" / "raw"
 if IN_COLAB and DATA_SOURCE == "drive":
     from google.colab import drive
     drive.mount("/content/drive")
-    if any(Path(DRIVE_DATA_DIR).rglob("*.csv")):
+    # The day files are named like "Monday-WorkingHours.pcap_ISCX.csv" in both official variants.
+    if any(".pcap_ISCX" in p.name for p in Path(DRIVE_DATA_DIR).rglob("*.csv")):
         DATA_DIR = Path(DRIVE_DATA_DIR)
     else:
-        print("No CSVs found in", DRIVE_DATA_DIR, "- falling back to automatic download.")
+        print("No CIC-IDS2017 day CSVs found in", DRIVE_DATA_DIR, "- downloading to", DATA_DIR, "instead.")
 os.environ["CYBERREPLAY_DATA_DIR"] = str(DATA_DIR)  # must be set before importing cyberreplay
 
 import warnings

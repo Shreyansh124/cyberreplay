@@ -14,8 +14,8 @@
     "binary_recall": 0.9803708876935422,
     "binary_f1": 0.9467076093039274,
     "train_time_s": 231.244032005,
-    "inference_time_s": 0.34809715499977756,
-    "inference_us_per_flow": 0.79120901862863
+    "inference_time_s": 0.400353441000334,
+    "inference_us_per_flow": 0.9099851826099291
   },
   "DecisionTree": {
     "model": "DecisionTree",
@@ -32,8 +32,8 @@
     "binary_recall": 0.998187167523552,
     "binary_f1": 0.9962700678506544,
     "train_time_s": 32.338814333999835,
-    "inference_time_s": 0.11171858699981385,
-    "inference_us_per_flow": 0.2539312726722987
+    "inference_time_s": 0.10210462600025494,
+    "inference_us_per_flow": 0.23207917610000758
   },
   "RandomForest": {
     "model": "RandomForest",
@@ -50,8 +50,8 @@
     "binary_recall": 0.9993313322832774,
     "binary_f1": 0.9965474320599829,
     "train_time_s": 91.67024372200012,
-    "inference_time_s": 0.6081116269997437,
-    "inference_us_per_flow": 1.3822101005549277
+    "inference_time_s": 0.5677443280001171,
+    "inference_us_per_flow": 1.2904570638884731
   },
   "XGBoost": {
     "model": "XGBoost",
@@ -68,7 +68,7 @@
     "binary_recall": 0.9993461915658712,
     "binary_f1": 0.9967025557045787,
     "train_time_s": 61.860597093999786,
-    "inference_time_s": 1.5813365240001076,
-    "inference_us_per_flow": 3.5943060760623964
+    "inference_time_s": 1.4302770589993088,
+    "inference_us_per_flow": 3.250954775021386
   }
 }
