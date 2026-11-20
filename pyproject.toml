@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cyberreplay"
+version = "1.0.0"
+description = "Machine learning-based network intrusion detection and attack analysis on CIC-IDS2017"
+requires-python = ">=3.10"
+
+[project.scripts]
+cyberreplay = "cyberreplay.pipeline:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
