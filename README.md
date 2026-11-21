@@ -90,16 +90,15 @@ command `PYTHONPATH=src python -m cyberreplay.pipeline --download` recreates it 
 
 ## Run in Google Colab (virtual lab)
 
-1. The repository is private: create a GitHub fine-grained personal access token with read-only **Contents**
-   permission on `Shreyansh124/cyberreplay`.
-2. In Colab: **Secrets** (key icon in the left sidebar) -> add `GITHUB_TOKEN` = your token -> enable notebook access.
-3. Open `notebooks/CyberReplay.ipynb` in Colab (File -> Upload notebook, or the GitHub tab after authorising Colab
-   for private repositories) and run all cells. The first cell clones the repo with the token
-   (`google.colab.userdata.get('GITHUB_TOKEN')`), removes the token from the git remote and installs
-   `requirements.txt`; if NumPy/pandas get upgraded it restarts the runtime once - just run all cells again.
-4. Data: set `DATA_SOURCE = "drive"` and `DRIVE_DATA_DIR` to the Drive folder that holds your CIC-IDS2017 CSVs
+1. Open the notebook directly in Colab:
+   <https://colab.research.google.com/github/Shreyansh124/cyberreplay/blob/main/notebooks/CyberReplay.ipynb>
+   (or File -> Open notebook -> GitHub tab -> `Shreyansh124/cyberreplay`).
+2. Run all cells. The first cell runs `git clone -b BRANCH https://github.com/Shreyansh124/cyberreplay.git`
+   (`BRANCH = "main"` by default) and installs `requirements.txt`; if NumPy/pandas get upgraded it restarts the
+   runtime once - just run all cells again.
+3. Data: set `DATA_SOURCE = "drive"` and `DRIVE_DATA_DIR` to the Drive folder that holds your CIC-IDS2017 CSVs
    (sub-folders are searched), or `DATA_SOURCE = "download"` to fetch the dataset automatically.
-5. `FORCE_RECOMPUTE = False` reuses the committed CV/tuning results; the final fits on 1.76 M flows still run
+4. `FORCE_RECOMPUTE = False` reuses the committed CV/tuning results; the final fits on 1.76 M flows still run
    (a High-RAM runtime is recommended). `FINAL_FIT_ROWS = 500_000` gives a faster, approximate run.
 
 ## Design decisions (summary - see `DECISIONS.md`)

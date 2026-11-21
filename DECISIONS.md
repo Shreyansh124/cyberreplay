@@ -43,6 +43,7 @@ choice made by the build agent, with the reason.
 
 | D24 | MachineLearningCSV fallback: chronological order = capture-day file order + row order; approximate timestamps are spread evenly over each file's known capture window (`config.DAY_WINDOWS`). If cached artefacts use a feature the variant lacks (it has no `Protocol`), feature selection and the final fits are recomputed automatically. | The user's Drive copy may be this variant; tested on a reduced copy of the data (synthetic timestamps monotonic, replay and timeline work). Timestamps are never features. |
 | D25 | In Colab the notebook only uses the Drive folder if it contains `*.pcap_ISCX.csv` day files; otherwise it downloads to the local `data/raw/`. | Never writes the 1.5 GB dataset into the user's Drive by accident. |
+| D26 | The Colab setup cell does a plain `git clone -b BRANCH https://github.com/Shreyansh124/cyberreplay.git` (`BRANCH = "main"`, configurable). | The repository is public, so the notebook needs no credentials or extra setup in Colab. |
 
 ## Deviations from the agreed decisions
 

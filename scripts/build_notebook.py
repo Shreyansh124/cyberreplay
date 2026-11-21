@@ -81,13 +81,9 @@ Random seed **42** everywhere.
 
 This notebook runs both on **Google Colab** (the project's virtual lab) and locally.
 
-**One-time Colab setup for the private repository**
-1. Create a GitHub *fine-grained personal access token* with **read-only "Contents"** access to
-   `Shreyansh124/cyberreplay` (GitHub → Settings → Developer settings → Personal access tokens).
-2. In Colab, open the **key icon (Secrets)** in the left sidebar, add a secret named `GITHUB_TOKEN` with the token
-   as its value and switch on **Notebook access**.
-3. Run the cells below. The token is read with `google.colab.userdata.get('GITHUB_TOKEN')`, used only for the clone and
-   then removed from the stored git remote URL.
+In Colab the first cell clones the public repository
+`https://github.com/Shreyansh124/cyberreplay.git` (branch set by `BRANCH`) into `/content/cyberreplay` and installs
+the pinned `requirements.txt`; no setup or credentials are needed. Locally it simply locates the repository root.
 
 If `pip` upgrades NumPy/pandas, the cell restarts the runtime automatically - simply run all cells again.
 """)
@@ -99,18 +95,13 @@ import sys
 from pathlib import Path
 
 IN_COLAB = "google.colab" in sys.modules
-REPO = "github.com/Shreyansh124/cyberreplay.git"
+REPO_URL = "https://github.com/Shreyansh124/cyberreplay.git"
 BRANCH = "main"  # change if the project lives on another branch
 
 if IN_COLAB:
-    from google.colab import userdata
     ROOT = Path("/content/cyberreplay")
     if not ROOT.exists():
-        token = userdata.get("GITHUB_TOKEN")  # Colab secret (see instructions above)
-        subprocess.run(["git", "clone", "--depth", "1", "-b", BRANCH, f"https://{token}@{REPO}", str(ROOT)],
-                       check=True)
-        # Do not keep the token in .git/config.
-        subprocess.run(["git", "-C", str(ROOT), "remote", "set-url", "origin", f"https://{REPO}"], check=True)
+        subprocess.run(["git", "clone", "-b", BRANCH, REPO_URL, str(ROOT)], check=True)
     subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-r", str(ROOT / "requirements.txt")], check=True)
     import importlib.metadata as md
     stale = [p for p in ("numpy", "pandas", "scipy") if p in sys.modules
