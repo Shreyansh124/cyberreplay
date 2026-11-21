@@ -1,0 +1,27 @@
+# CyberReplay - pinned, tested on Python 3.12 (Linux, 8 CPU, no GPU).
+# Core data / ML (Track A libraries only)
+numpy==2.5.5
+pandas==3.1.1
+pyarrow==26.0.1
+scipy==1.18.1
+scikit-learn==1.9.1
+xgboost==3.4.1
+joblib==1.6.0
+# Visualisation
+matplotlib==3.11.2
+seaborn==0.13.2
+plotly==7.1.0
+# Explainability
+shap==0.54.1
+# Dashboard (steps 11-14)
+streamlit==1.67.0
+# Notebook execution / export and report build
+jupyter==1.1.1
+ipykernel==7.4.0
+nbformat==5.11.1
+nbconvert==7.17.2
+Markdown==3.11.3
+tabulate==0.10.0
+# Testing / PDF build
+pytest==9.0.2
+pypdf==6.4.0

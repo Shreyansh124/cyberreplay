@@ -1,0 +1,19 @@
+{
+  "model": "RandomForest",
+  "best_params": {
+    "n_estimators": 150,
+    "min_samples_leaf": 1,
+    "max_features": 0.5,
+    "max_depth": 20,
+    "criterion": "entropy",
+    "class_weighting": "balanced"
+  },
+  "best_score": 0.9629732295873134,
+  "best_fold_scores": [
+    0.9607553373031537,
+    0.9536306087064399,
+    0.9745337427523464
+  ],
+  "search_seconds": 705.6337928771973,
+  "n_iter": 20
+}
