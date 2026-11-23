@@ -68,12 +68,14 @@ with a derived binary `is_malicious` output, a traffic-replay dashboard and SHAP
 | 4 Feature engineering | §4 |
 | 5-7 Models, cross-validation, tuning | §5-7 |
 | 8-9 Evaluation, best model | §8-9 |
+| Report extensions: split overview, ROC-AUC, baseline, over/underfitting | §4.1, §9.1-9.2 |
 | 10 Attack patterns (importance, SHAP) | §10 |
 | 11-14 Dashboard, replay, interactive visuals, explanations | §11 |
 | 15-16 Reproducibility, conclusions | §12-13 |
 
 We keep the implementation in `src/cyberreplay` and use this notebook to run each stage and present its results.
-Every stage uses random seed **42**.
+Every stage uses random seed **42**. Figure numbers in this notebook refer to the file numbers in `reports/figures`
+(for example, Figure 8 is `08_tuning.png`); the report numbers its figures in reading order instead.
 """)
 
     md("""
@@ -149,7 +151,7 @@ import numpy as np
 import pandas as pd
 from IPython.display import Markdown, display
 
-from cyberreplay import (clean, config, data, eda, evaluate, explain, features, models, pipeline,
+from cyberreplay import (clean, config, data, diagnostics, eda, evaluate, explain, features, models, pipeline,
                          replay, tuning, utils)
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -296,6 +298,19 @@ print("Correlated (dropped):", sel["correlated_dropped"])
 print("Low importance (dropped):", sel["low_importance_dropped"])
 print(f"\\n{len(FEATURES)} selected features:", FEATURES)
 """)
+    md("""
+### 4.1 The train/test split per family
+
+We show how many flows of each family land in each part of the split. The figure uses a log scale because BENIGN has
+almost 40,000 times more unique flows than Rare.
+""")
+    code("""
+raw_counts = clean_df[config.TARGET_COL].value_counts().add(pd.Series(report.duplicates_removed), fill_value=0)
+split_table = diagnostics.split_table(train, test, raw_counts)
+display(split_table)
+fig = diagnostics.plot_split(split_table); plt.show()
+""")
+    obs("split")
     code("""
 imp = pd.read_csv(config.RESULTS_DIR / "selection_importance.csv")
 fig, ax = plt.subplots(figsize=(10, 7))
@@ -380,6 +395,8 @@ display(tuned["XGBoost"]["cv_results"].head(5))
 We refit every tuned pipeline on the **full** training split of 1.76 M flows, then evaluate it once on the untouched
 test split of 440k flows. We record training time as wall-clock fit time and inference time as `predict` over the
 complete test split.
+Wall-clock times depend on the machine and its load, so a re-run shows its own measurements; the observations below
+quote the reported run.
 """)
     code("""
 fit_train = train if FINAL_FIT_ROWS is None else features.stratified_sample(train, FINAL_FIT_ROWS)
@@ -415,6 +432,46 @@ pipeline.stage_save_best(best, why, fitted, comparison, train, FEATURES, tuned)
 print(f"Saved {config.BEST_MODEL_PATH} ({config.BEST_MODEL_PATH.stat().st_size / 1e6:.1f} MB)")
 """)
     obs("best")
+    md("""
+## 9.1 ROC curves, balanced accuracy and a majority-class baseline
+
+This stage first checks that the fitted models reproduce the stored test metrics. It then adds three things:
+* **balanced accuracy**, the mean of the per-class recalls, which for a multi-class problem equals macro recall;
+* **one-vs-rest ROC-AUC (macro)**: for each family, the ROC curve of "this family vs the rest" from the predicted
+  probabilities, averaged over the eight families;
+* a **majority-class baseline** (`DummyClassifier(strategy="most_frequent")`), which always predicts BENIGN.
+
+The ROC plots use a logarithmic false-positive axis, because every model is near the top-left corner on a linear axis.
+""")
+    code("""
+from IPython.display import Image
+diag = pipeline.stage_diagnostics(train, test, FEATURES, tuned, fitted, tune_df, cv_folds, tune_summary,
+                                  raw_counts, results=results, force=FORCE_RECOMPUTE)
+print("saved best model predicts like the refit:", diag["best_model_same_predictions"])
+display(diag["baseline"])
+display(diag["roc_auc_per_class"])
+display(Image(filename=str(config.FIGURES_DIR / "18_final_model_cm_roc.png")))
+display(Image(filename=str(config.FIGURES_DIR / "19_roc_comparison.png")))
+""")
+    obs("roc")
+    md("""
+## 9.2 Over- and underfitting
+
+We carve a stratified 20% validation slice out of the **training** split (seed 42; the test split is not used), fit
+every tuned model on the other 80% and compare training and validation macro F1. Our rule: training macro F1 below
+0.90 means **underfitting** (high bias); otherwise a train-validation gap above 0.05 means **overfitting** (high
+variance), a gap between 0.02 and 0.05 a slight overfit, and a smaller gap a good fit.
+
+Learning curves (Logistic Regression and Random Forest) and validation curves (Decision Tree depth, XGBoost boosting
+rounds) use a 200k-row stratified training subsample that keeps every minority row, with 3-fold StratifiedKFold.
+""")
+    code("""
+display(diag["cv_overview"])
+display(diag["fit_diagnosis"])
+display(Image(filename=str(config.FIGURES_DIR / "20_learning_curves.png")))
+display(Image(filename=str(config.FIGURES_DIR / "21_validation_curves.png")))
+""")
+    obs("fit")
 
     # ------------------------------------------------------------------ 10
     md("""
