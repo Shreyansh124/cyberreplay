@@ -55,7 +55,7 @@ def build() -> nbf.NotebookNode:
     md("""
 # CyberReplay: Machine Learning-Based Network Intrusion Detection and Attack Analysis
 
-**[Student Name]** · **[Roll Number]** · **[Course]** · **[Institute]**
+**Shreyansh Krishna** (2026CS05055) · **Aamir Lanker** (2026CS05054) · **Harshith G. D** (2026CS05053) · Course: Machine Learning
 
 Multi-class classification of CIC-IDS2017 network flows into 8 attack families (Track A: scikit-learn / XGBoost),
 plus a derived binary `is_malicious` output, a traffic-replay dashboard and SHAP explanations.
