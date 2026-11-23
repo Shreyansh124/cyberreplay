@@ -338,7 +338,7 @@ def plot_cv_folds(folds: pd.DataFrame) -> plt.Figure:
     Returns:
         Figure (saved as ``07_cv_folds.png``).
     """
-    fig, (top, bottom) = plt.subplots(2, 1, sharex=True, figsize=(FULL_WIDTH, 3.1),
+    fig, (top, bottom) = plt.subplots(2, 1, sharex=True, figsize=(FULL_WIDTH, 2.45),
                                       gridspec_kw={"height_ratios": [3.2, 1], "hspace": 0.08})
     trees = folds[folds["model"] != "LogisticRegression"]["f1_macro"]
     linear = folds[folds["model"] == "LogisticRegression"]["f1_macro"]
@@ -367,7 +367,7 @@ def plot_cv_folds(folds: pd.DataFrame) -> plt.Figure:
     handles, labels = top.get_legend_handles_labels()
     top.legend(handles, labels, title="model: mean ± std", loc="upper left", bbox_to_anchor=(1.02, 1.0),
                frameon=False, fontsize=10.5, title_fontsize=11, alignment="left")
-    fig.subplots_adjust(left=0.115, right=0.555, top=0.97, bottom=0.17)
+    fig.subplots_adjust(left=0.115, right=0.555, top=0.97, bottom=0.19)
     _save(fig, "07_cv_folds")
     return fig
 

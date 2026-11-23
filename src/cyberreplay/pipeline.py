@@ -356,7 +356,9 @@ def stage_diagnostics(train: pd.DataFrame, test: pd.DataFrame, feats: list[str],
     vc_xgb = diagnostics.load_or_compute("validation_curve_xgb", lambda: diagnostics.boosting_curve_scores(
         params["XGBoost"], curve_df, feats), force)
     diagnostics.plot_learning_curves(lc)
-    diagnostics.plot_validation_curves(vc_dt, vc_xgb)
+    depth = params["DecisionTree"].get("max_depth")
+    diagnostics.plot_validation_curves(vc_dt, vc_xgb, "none" if depth is None else str(depth),
+                                       int(params["XGBoost"]["n_estimators"]))
     stage_result_figures()
     return {"reproduction_diff": diff, "best": best, "best_model_same_predictions": same_predictions,
             "test_comparison": evaluate_table, "baseline": baseline, "roc_auc_per_class": auc_table,

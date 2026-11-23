@@ -120,7 +120,7 @@ def plot_split(table: pd.DataFrame) -> plt.Figure:
             ax1.text(p, v * 1.15, f"{int(v):,}", ha="center", va="bottom", rotation=90, fontsize=6.5)
     ax1.set_yscale("log")
     ax1.set_ylim(1, 3e8)
-    ax1.set_xticks(x, fam.index)
+    ax1.set_xticks(x, [f.replace(" ", "\n") for f in fam.index])
     ax1.set_ylabel("flows (log scale)")
     ax1.set_title("Flows per family (stratified 80/20, seed 42)")
     ax1.legend(loc="upper right", ncol=2, frameon=False)
@@ -361,7 +361,7 @@ def plot_final_cm_roc(name: str, confusion: np.ndarray, curves: dict) -> plt.Fig
     Returns:
         Figure (saved as ``18_final_model_cm_roc.png``).
     """
-    fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(FULL_WIDTH, 3.25), gridspec_kw={"width_ratios": [1.08, 1]})
+    fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(FULL_WIDTH, 3.0), gridspec_kw={"width_ratios": [1.08, 1]})
     annot = np.array([[f"{v:,}" if v else "" for v in row] for row in confusion])
     sns.heatmap(confusion, annot=annot, fmt="", cmap="Blues", norm=LogNorm(vmin=1, vmax=confusion.max()),
                 cbar=False, ax=ax0, xticklabels=config.CLASS_ORDER, yticklabels=config.CLASS_ORDER,
@@ -377,8 +377,8 @@ def plot_final_cm_roc(name: str, confusion: np.ndarray, curves: dict) -> plt.Fig
         ax1.step(np.clip(fpr, ROC_MIN_FPR, 1), tpr, where="post", color=FAMILY_COLORS[fam],
                  label=f"{fam} ({auc:.4f})", lw=1.2)
     _roc_axis(ax1)
-    ax1.legend(title="family (AUC)", loc="lower right", fontsize=6.8, title_fontsize=7.2, frameon=True,
-               framealpha=0.9)
+    ax1.legend(title="family (AUC)", loc="lower right", fontsize=6.6, title_fontsize=7, frameon=True,
+               framealpha=0.6)
     ax1.set_title("(b) One-vs-rest ROC curves")
     fig.tight_layout(w_pad=1.2)
     save(fig, "18_final_model_cm_roc")
@@ -403,7 +403,8 @@ def plot_roc_comparison(curves_by_model: dict[str, dict]) -> plt.Figure:
         else:
             ax.plot(grid, tpr, color=MODEL_COLORS[name], label=f"{name} ({auc:.4f})")
     _roc_axis(ax)
-    ax.legend(title="macro ROC-AUC (OvR)", loc="upper left", fontsize=6.8, title_fontsize=7.2, framealpha=0.9)
+    ax.legend(title="macro ROC-AUC (OvR)", loc="center right", bbox_to_anchor=(1.0, 0.4), fontsize=6.6,
+              title_fontsize=7, framealpha=0.9)
     fig.tight_layout()
     save(fig, "19_roc_comparison")
     return fig
@@ -534,13 +535,15 @@ def validation_curve_scores(name: str, params: dict, df: pd.DataFrame, features:
         seed: Random seed.
 
     Returns:
-        Long table: model, param, value (as text), position, fold, train_f1, val_f1.
+        Long table: model, param, value (as text, ``"none"`` for ``None``), position, fold,
+        train_f1, val_f1.
     """
     X, y = df[features], encode_target(df[config.TARGET_COL])
     tasks = [(i, v, k, tr, va) for i, v in enumerate(values) for k, (tr, va) in enumerate(_folds(y, folds, seed))]
     scores = Parallel(n_jobs=_outer_jobs(name))(
         delayed(_fit_and_score)(name, {**params, param: v}, features, X, y, tr, va) for _, v, _, tr, va in tasks)
-    return pd.DataFrame([{"model": name, "param": param, "value": str(v), "position": i, "fold": k + 1,
+    return pd.DataFrame([{"model": name, "param": param, "value": "none" if v is None else str(v),
+                          "position": i, "fold": k + 1,
                           "train_f1": s[0], "val_f1": s[1]} for (i, v, k, _, _), s in zip(tasks, scores)])
 
 
@@ -580,6 +583,14 @@ def boosting_curve_scores(params: dict, df: pd.DataFrame, features: list[str],
     return pd.DataFrame(rows)
 
 
+def _curve_legend(ax: plt.Axes) -> None:
+    """Neutral legend (dashed = train, solid = cross-validation) shared by the curve panels."""
+    from matplotlib.lines import Line2D
+    handles = [Line2D([], [], color="#333333", ls="--", marker="o", ms=3, label="train"),
+               Line2D([], [], color="#333333", ls="-", marker="o", ms=3, label="cross-validation")]
+    ax.legend(handles=handles, loc="lower right", frameon=False, handlelength=2.2)
+
+
 def _curve_panel(ax: plt.Axes, df: pd.DataFrame, x: str, color: str) -> None:
     """Draw mean +/- std of train and CV macro F1 over folds on one panel."""
     g = df.groupby(x)[["train_f1", "val_f1"]].agg(["mean", "std"])
@@ -613,36 +624,42 @@ def plot_learning_curves(lc: pd.DataFrame) -> plt.Figure:
         ax.set_xlabel("training rows (thousands)")
         ax.set_xlim(0, sub["k_rows"].max() * 1.05)
     np.atleast_1d(axes)[0].set_ylabel("macro F1")
-    np.atleast_1d(axes)[0].legend(loc="lower right", frameon=False, handlelength=1.8)
+    _curve_legend(np.atleast_1d(axes)[-1])
     fig.tight_layout(w_pad=0.6)
     save(fig, "20_learning_curves")
     return fig
 
 
 @styled(7.5)
-def plot_validation_curves(dt: pd.DataFrame, xgb: pd.DataFrame) -> plt.Figure:
+def plot_validation_curves(dt: pd.DataFrame, xgb: pd.DataFrame, tuned_depth: str = "none",
+                           tuned_rounds: int = 300) -> plt.Figure:
     """Validation curves: Decision Tree vs ``max_depth`` and XGBoost vs boosting rounds.
 
     Args:
         dt: ``validation_curve_scores`` output for the Decision Tree.
         xgb: ``boosting_curve_scores`` output.
+        tuned_depth: Tuned Decision Tree depth as text (marked with a dotted line).
+        tuned_rounds: Tuned number of XGBoost rounds (marked with a dotted line).
 
     Returns:
         Figure (saved as ``21_validation_curves.png``).
     """
     fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(HALF_WIDTH, 2.45))
     _curve_panel(ax0, dt, "position", MODEL_COLORS["DecisionTree"])
-    labels = dt.drop_duplicates("position").sort_values("position")["value"].replace({"None": "∞"})
-    ax0.set_xticks(range(len(labels)), labels, fontsize=6.5)
+    values = dt.drop_duplicates("position").sort_values("position")["value"].astype(str)
+    ax0.set_xticks(range(len(values)), values.replace({"none": "∞"}), fontsize=6.3, rotation=90)
+    ax0.axvline(int(np.flatnonzero(values.to_numpy() == tuned_depth)[0]), color="#555555", ls=":", lw=1)
     ax0.set_xlabel("max_depth (∞ = no limit)")
     ax0.set_ylabel("macro F1")
     ax0.set_title("Decision Tree")
-    ax0.legend(loc="lower right", frameon=False, handlelength=1.8)
+    _curve_legend(ax0)
     x = xgb.copy()
     x["rounds"] = x["value"].astype(int)
     _curve_panel(ax1, x, "rounds", MODEL_COLORS["XGBoost"])
     ax1.set_xscale("log")
+    ax1.axvline(tuned_rounds, color="#555555", ls=":", lw=1)
     ax1.set_xticks([10, 30, 100, 300], ["10", "30", "100", "300"])
+    ax1.minorticks_off()
     ax1.set_xlabel("boosting rounds (log)")
     ax1.set_title("XGBoost")
     fig.tight_layout(w_pad=0.6)
@@ -666,7 +683,8 @@ def load_or_compute(name: str, compute, force: bool = False) -> pd.DataFrame:
     """
     path: Path = config.RESULTS_DIR / f"{name}.csv"
     if path.exists() and not force:
-        return pd.read_csv(path)
+        # Text labels such as "none" (no depth limit) must not be parsed as missing values.
+        return pd.read_csv(path, keep_default_na=False)
     out = compute()
     save_table(out, name, index=False)
     return out

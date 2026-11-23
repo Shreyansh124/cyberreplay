@@ -132,8 +132,8 @@ def test_validation_and_boosting_curves_shape():
     df = synthetic()
     feats = ["f0", "f1", "f2"]
     vc = diagnostics.validation_curve_scores("DecisionTree", {}, df, feats, "max_depth", [1, None], folds=2)
-    assert len(vc) == 4 and set(vc["value"]) == {"1", "None"}
+    assert len(vc) == 4 and set(vc["value"]) == {"1", "none"}
     depth1 = vc[vc["value"] == "1"]["train_f1"].mean()
-    assert depth1 < vc[vc["value"] == "None"]["train_f1"].mean()
+    assert depth1 < vc[vc["value"] == "none"]["train_f1"].mean()
     bc = diagnostics.boosting_curve_scores({"max_depth": 2, "n_jobs": 1}, df, feats, rounds=[1, 5], folds=2)
     assert len(bc) == 4 and set(bc["value"]) == {"1", "5"}
