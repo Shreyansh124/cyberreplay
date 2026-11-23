@@ -155,7 +155,7 @@ number as macro recall.
 | Dummy (most frequent) | 0.114 ± 0.000 | 0.125 | 0.115 | - | no hyperparameters; always predicts BENIGN |
 | LogisticRegression | 0.534 ± 0.002 | 0.954 | 0.723 | 0.790 | C = 10.1, square-root class weights (10 candidates) |
 | DecisionTree | 0.945 ± 0.018 | 0.937 | 0.979 | 0.949 | entropy, no depth limit, min_samples_leaf 2, max_features 0.8 (30) |
-| RandomForest | 0.954 ± 0.012 | 0.954 | 0.964 | 0.963 | 150 trees, max_depth 20, max_features 0.5, entropy (20) |
+| RandomForest | 0.954 ± 0.012 | 0.954 | 0.963 | 0.963 | 150 trees, max_depth 20, max_features 0.5, entropy (20) |
 | XGBoost | 0.960 ± 0.007 | 0.969 | 0.967 | 0.966 | 300 rounds, depth 6, learning rate 0.24, subsample 0.77, colsample 0.68 (20) |
 
 </div>
