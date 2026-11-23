@@ -12,10 +12,10 @@ traffic through a Streamlit dashboard with live predictions.
 | Model | Accuracy | Balanced accuracy | Macro precision | Macro recall | Macro F1 | ROC-AUC (OvR, macro) | BENIGN false-positive rate | Train time (1.76 M flows) | Inference (440k flows) |
 |---|---|---|---|---|---|---|---|---|---|
 | Majority baseline (Dummy) | 0.8470 | 0.1250 | 0.1059 | 0.1250 | 0.1146 | 0.5000 | 0.00% | - | - |
-| Logistic Regression | 0.9828 | 0.8804 | 0.6497 | 0.8804 | 0.7147 | 0.9791 | 1.64% | 231 s | 0.30 s |
+| Logistic Regression | 0.9828 | 0.8804 | 0.6497 | 0.8804 | 0.7147 | 0.9791 | 1.64% | 231 s | 0.29 s |
 | Decision Tree | 0.9988 | 0.9140 | 0.8781 | 0.9140 | 0.8950 | 0.9571 | 0.10% | 32 s | 0.09 s |
-| **Random Forest** (final) | 0.9989 | 0.9329 | 0.9360 | 0.9329 | **0.9206** | 0.9716 | 0.11% | 92 s | 0.50 s |
-| XGBoost | 0.9990 | 0.9296 | 0.9111 | 0.9296 | 0.9117 | 0.9918 | 0.11% | 62 s | 1.39 s |
+| **Random Forest** (final) | 0.9989 | 0.9329 | 0.9360 | 0.9329 | **0.9206** | 0.9716 | 0.11% | 92 s | 0.48 s |
+| XGBoost | 0.9990 | 0.9296 | 0.9111 | 0.9296 | 0.9117 | 0.9918 | 0.11% | 62 s | 1.36 s |
 
 Random Forest is the final model: best macro F1 (95% bootstrap CI 0.864-0.947, ahead of XGBoost in 99% of paired
 resamples), best minority-class recall (0.893), 0.11% BENIGN false alarms and ~1.1 µs per flow. The derived binary

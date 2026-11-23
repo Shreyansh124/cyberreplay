@@ -470,7 +470,7 @@ def plot_comparison(comp: pd.DataFrame) -> plt.Figure:
     axes[2].legend(["train (1.76 M rows)", "predict (440k rows)"], loc="upper right", fontsize=6.3, frameon=False)
     for i, (tr, inf) in enumerate(t.values):
         axes[2].text(i - 0.18, tr, f"{tr:.0f}s", ha="center", va="bottom", fontsize=6)
-        axes[2].text(i + 0.18, inf, f"{inf:.1f}s", ha="center", va="bottom", fontsize=6)
+        axes[2].text(i + 0.18, inf, f"{inf:.2f}s", ha="center", va="bottom", fontsize=6)
     for ax in axes:
         ax.tick_params(axis="x", labelsize=6.3)
         ax.set_xlabel("")

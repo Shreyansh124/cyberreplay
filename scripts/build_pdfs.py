@@ -1,7 +1,9 @@
 """Build the PDF deliverables: ``reports/report.pdf`` and ``reports/notebook.pdf``.
 
 * report: ``reports/report.md`` -> HTML (Python-Markdown, print CSS) -> PDF via
-  headless Chrome/Chromium (no LaTeX needed).
+  headless Chrome/Chromium (no LaTeX needed). Appendix A (the complete program
+  listing) is generated from the current source by ``build_code_appendix.py``
+  and inserted where the Markdown contains its marker.
 * notebook: ``notebooks/CyberReplay.ipynb`` (already executed) -> HTML via
   nbconvert -> PDF via headless Chrome.
 
@@ -11,8 +13,8 @@ Usage::
     python scripts/build_pdfs.py report     # only the report
 
 Prints the page count of each PDF. The main report (sections 1-7 and the
-References) must fit in 3-5 pages; Section 8 (key code) and the figure appendix
-start on a new page after the References and are not counted.
+References) must fit in 3-5 pages; Section 8 (key code), the figure appendix and
+Appendix A each start on a new page after the References and are not counted.
 """
 
 from __future__ import annotations
@@ -25,6 +27,9 @@ from pathlib import Path
 
 import markdown
 from pypdf import PdfReader
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build_code_appendix import APPENDIX_MARKER, appendix_html  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
@@ -71,11 +76,20 @@ pre { font-family: "DejaVu Sans Mono", monospace; font-size: 7.1pt; line-height:
       break-inside: avoid; }
 pre code { font-size: inherit; }
 .newpage { break-before: page; }
+.code-appendix .banner { font-family: "DejaVu Sans Mono", monospace; font-size: 7.4pt; font-weight: bold;
+      background: #e4e4e4; border: 0.6px solid #bbb; padding: 1.5pt 4pt; margin: 6pt 0 2pt 0; break-after: avoid; }
+.code-appendix pre.listing { font-size: 6.7pt; line-height: 1.13; background: none; border: none; padding: 0;
+      margin: 0; white-space: pre; overflow-wrap: normal; break-inside: auto; }
+.code-appendix pre.cellbanner { color: #555; font-weight: bold; margin-top: 3pt; break-after: avoid; }
+.code-appendix .no { color: #777; }
 .keep { break-inside: avoid; }
 """
 
 # The main body ends where Section 8 (code) begins on a new page.
 MAIN_BODY_END_MARKER = "8. Key code, explained"
+# First line of each part of the report, in order (used to print page ranges).
+PART_MARKERS = {"Section 8": MAIN_BODY_END_MARKER, "Figure appendix": "Figure appendix",
+                "Appendix A": "Appendix A. Complete program"}
 
 
 def find_chrome() -> str:
@@ -121,6 +135,9 @@ def build_report() -> int:
     """
     md = (REPORTS / "report.md").read_text()
     body = markdown.markdown(md, extensions=["tables", "fenced_code", "attr_list", "md_in_html"])
+    if APPENDIX_MARKER not in body:
+        raise RuntimeError(f"{APPENDIX_MARKER} missing from report.md")
+    body = body.replace(APPENDIX_MARKER, appendix_html())
     html = f"<!doctype html><html lang='en'><head><meta charset='utf-8'><style>{REPORT_CSS}</style></head>" \
            f"<body>{body}</body></html>"
     html_path = REPORTS / "report.html"
@@ -129,7 +146,31 @@ def build_report() -> int:
     html_path.unlink()
     main = main_body_pages(REPORTS / "report.pdf")
     print(f"report.pdf: {pages} pages (main body, sections 1-7 + References: {main} pages)")
+    for part, (first, last) in part_ranges(REPORTS / "report.pdf").items():
+        print(f"  {part}: pages {first}-{last}")
     return pages
+
+
+def part_ranges(pdf_path: Path) -> dict[str, tuple[int, int]]:
+    """Page range (1-based, inclusive) of the main body and of each appendix part.
+
+    A part starts on the first page whose text begins with its marker.
+
+    Args:
+        pdf_path: Built report PDF.
+
+    Returns:
+        ``{part: (first page, last page)}`` in document order.
+    """
+    texts = [(p.extract_text() or "").lstrip() for p in PdfReader(str(pdf_path)).pages]
+    starts = {"Main body": 1}
+    for part, marker in PART_MARKERS.items():
+        page = next((i + 1 for i, t in enumerate(texts) if t.startswith(marker)), None)
+        if page:
+            starts[part] = page
+    names = list(starts)
+    ends = [starts[n] - 1 for n in names[1:]] + [len(texts)]
+    return {n: (starts[n], e) for n, e in zip(names, ends)}
 
 
 def main_body_pages(pdf_path: Path) -> int:

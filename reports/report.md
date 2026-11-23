@@ -221,10 +221,10 @@ at 0.969 around 200-300 rounds and slips to 0.967 at 600 rounds while the traini
 | Model | Accuracy | Bal. acc. | Precision (macro) | Recall (macro) | **F1 (macro)** | 95% CI (F1) | ROC-AUC (OvR) | Minority recall | BENIGN FPR | Train time | Inference (440k flows) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Dummy (most frequent) | 0.8470 | 0.1250 | 0.1059 | 0.1250 | 0.1146 | - | 0.5000 | 0.000 | 0.00% | - | - |
-| LogisticRegression | 0.9828 | 0.8804 | 0.6497 | 0.8804 | 0.7147 | 0.705-0.726 | 0.9791 | 0.819 | 1.64% | 231 s | 0.30 s |
+| LogisticRegression | 0.9828 | 0.8804 | 0.6497 | 0.8804 | 0.7147 | 0.705-0.726 | 0.9791 | 0.819 | 1.64% | 231 s | 0.29 s |
 | DecisionTree | 0.9988 | 0.9140 | 0.8781 | 0.9140 | 0.8950 | 0.848-0.923 | 0.9571 | 0.863 | 0.10% | 32 s | 0.09 s |
-| **RandomForest** | 0.9989 | **0.9329** | **0.9360** | **0.9329** | **0.9206** | 0.864-0.947 | 0.9716 | **0.893** | 0.11% | 92 s | 0.50 s |
-| XGBoost | **0.9990** | 0.9296 | 0.9111 | 0.9296 | 0.9117 | 0.857-0.943 | **0.9918** | 0.888 | 0.11% | 62 s | 1.39 s |
+| **RandomForest** | 0.9989 | **0.9329** | **0.9360** | **0.9329** | **0.9206** | 0.864-0.947 | 0.9716 | **0.893** | 0.11% | 92 s | 0.48 s |
+| XGBoost | **0.9990** | 0.9296 | 0.9111 | 0.9296 | 0.9117 | 0.857-0.943 | **0.9918** | 0.888 | 0.11% | 62 s | 1.36 s |
 
 </div>
 <p class="cap"><b>Table 5.</b> Results on the 439,956 held-out test flows; the CI comes from a paired bootstrap over 300 resamples. All metrics side by side in Fig 16.</p>
@@ -794,3 +794,5 @@ Figures that support the analysis but do not fit in the five main pages. All are
 
 <div class="figure"><img class="full" src="figures/16_replay_timeline.png">
 <p class="cap"><b>Fig 21.</b> Replay of the 29,999-flow dataset sample through the final model: predicted families per 5-minute bin over capture time (active periods only).</p></div>
+
+<!-- CODE_APPENDIX -->

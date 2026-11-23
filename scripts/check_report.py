@@ -7,10 +7,13 @@ Checks:
       Section 8 starts at the top of a new page;
     * every line-numbered code excerpt in Section 8 matches the source file;
     * every number in the results tables of a baseline version of the report
-      (``--baseline-ref``, a git revision) still appears in the current report;
+      (``--baseline-ref``, a git revision) still appears in the current report,
+      apart from the deliberate replacements in ``REPLACED``;
     * Section 1 has 90-120 words, and the prose avoids stock phrases and arrows;
     * figure captions are numbered 1..N in order and every analysis figure in
-      ``reports/figures`` is used.
+      ``reports/figures`` is used;
+    * Appendix A starts on a new page and every line of every listed file
+      (``build_code_appendix.FILES``) appears in it with its line number, in order.
 
 Usage::
 
@@ -29,6 +32,9 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build_code_appendix import expected_lines  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_MD = ROOT / "reports" / "report.md"
 REPORT_PDF = ROOT / "reports" / "report.pdf"
@@ -37,6 +43,9 @@ DEFAULT_BASELINE = "1e63a0f"
 PAGE1_TEXT = ["Shreyansh Krishna", "2026CS05055", "Aamir Lanker", "2026CS05054", "Harshith G. D", "2026CS05053",
               "Anil Pandey", "2026CS05031", "Course: Machine Learning"]
 STOCK_PHRASES = ["delve", "leverage", "robust", "seamless", "crucial"]
+# Deliberate replacements of baseline numbers: the old inference times were replaced by the
+# values stored in reports/results/test_comparison.csv (rounded to 2 decimals).
+REPLACED = {"0.30": "0.29", "0.50": "0.48", "1.39": "1.36"}
 SECTION8 = "## 8. Key code, explained"
 NUMBER = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?(?:-\d[\d,]*(?:\.\d+)?)?%?")
 
@@ -171,6 +180,47 @@ def check_figures(md: str, failures: list[str]) -> int:
     return len(nums)
 
 
+def check_code_appendix(failures: list[str]) -> int:
+    """Check that the printed Appendix A lists every source line, numbered and in order.
+
+    The text of the appendix pages is extracted with pypdf in layout mode (the
+    default mode joins the lines of a ``<pre>`` block). Lines starting with
+    ``↪`` are joined to the line before (wrapped long lines); all whitespace is
+    removed before comparing, so changes in spacing from text extraction do not
+    matter. Each expected line must match ``<number><text>`` at or after the
+    position of the previous match; banner lines in between are skipped.
+
+    Args:
+        failures: List that receives failure messages.
+
+    Returns:
+        Number of source lines found.
+    """
+    pages = [p.extract_text(extraction_mode="layout") or "" for p in PdfReader(str(REPORT_PDF)).pages]
+    start = next((i for i, t in enumerate(pages) if t.lstrip().startswith("Appendix A. Complete program")), None)
+    if start is None:
+        failures.append("Appendix A does not start at the top of a page")
+        return 0
+    printed: list[str] = []
+    for line in "\n".join(pages[start:]).splitlines():
+        flat = "".join(line.split())
+        if flat.startswith("↪") and printed:
+            printed[-1] += flat[1:]
+        elif flat:
+            printed.append(flat)
+    pos, found = 0, 0
+    for rel, n, text in expected_lines():
+        want = f"{n}{''.join(text.split())}"
+        while pos < len(printed) and printed[pos] != want:
+            pos += 1
+        if pos == len(printed):
+            failures.append(f"Appendix A is missing {rel}:{n} (or it is out of order): {text.strip()[:60]!r}")
+            return found
+        pos += 1
+        found += 1
+    return found
+
+
 def main(argv: list[str] | None = None) -> None:
     """Run every check, print a summary and exit 1 on failure."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -184,13 +234,15 @@ def main(argv: list[str] | None = None) -> None:
     lines = check_excerpts(md, failures)
     current = set(NUMBER.findall(md))
     old = baseline_numbers(args.baseline_ref)
-    missing = sorted(old - current)
+    missing = sorted(n for n in old - current if REPLACED.get(n) not in current)
     if missing:
         failures.append(f"baseline table numbers missing: {missing}")
     words = check_prose(md, failures)
     figs = check_figures(md, failures)
+    listed = check_code_appendix(failures)
     print(f"main body pages: {pages}; excerpt lines checked: {lines}; baseline table numbers: {len(old)} "
-          f"(missing {len(missing)}); Section 1 words: {words}; figures: {figs}")
+          f"(missing {len(missing)}); Section 1 words: {words}; figures: {figs}; "
+          f"Appendix A lines found in order: {listed}/{len(expected_lines())}")
     if failures:
         print("FAILED:\n  " + "\n  ".join(failures))
         sys.exit(1)
