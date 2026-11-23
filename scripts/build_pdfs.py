@@ -33,7 +33,8 @@ body { font-family: "DejaVu Serif", Georgia, serif; font-size: 9.6pt; line-heigh
 h1 { font-size: 15pt; margin: 0 0 2pt 0; text-align: center; }
 h2 { font-size: 11.5pt; margin: 8pt 0 3pt 0; border-bottom: 1px solid #999; }
 h3 { font-size: 10pt; margin: 6pt 0 2pt 0; }
-p { margin: 2pt 0 4pt 0; text-align: justify; }
+p { margin: 2pt 0 4pt 0; text-align: justify; hyphens: auto; overflow-wrap: anywhere; }
+h2:nth-of-type(2) + p { text-align: left; }
 ul, ol { margin: 2pt 0 4pt 0; padding-left: 16pt; }
 li { margin: 0 0 1pt 0; }
 table { border-collapse: collapse; margin: 4pt auto; font-size: 8.2pt; }
@@ -91,7 +92,7 @@ def build_report() -> int:
     """
     md = (REPORTS / "report.md").read_text()
     body = markdown.markdown(md, extensions=["tables", "fenced_code", "attr_list", "md_in_html"])
-    html = f"<!doctype html><html><head><meta charset='utf-8'><style>{REPORT_CSS}</style></head>" \
+    html = f"<!doctype html><html lang='en'><head><meta charset='utf-8'><style>{REPORT_CSS}</style></head>" \
            f"<body>{body}</body></html>"
     html_path = REPORTS / "report.html"
     html_path.write_text(html)
