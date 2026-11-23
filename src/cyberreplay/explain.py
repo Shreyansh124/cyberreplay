@@ -22,6 +22,7 @@ from . import config
 from .eda import FAMILY_COLORS
 from .features import preprocessing_only
 from .models import WeightedXGBClassifier
+from .plotstyle import FULL_WIDTH, HALF_WIDTH, save, styled
 from .utils import cap_per_class, save_table
 
 TIME_HINTS = ("Duration", "IAT", "Active", "Idle")
@@ -50,6 +51,7 @@ def native_importance(pipe: Pipeline, features: list[str]) -> pd.Series:
     return pd.Series(imp, index=features).sort_values(ascending=False)
 
 
+@styled(7)
 def plot_importances(pipes: dict[str, Pipeline], features: list[str], top: int = 15) -> plt.Figure:
     """Side-by-side top-``top`` importances for every model.
 
@@ -66,16 +68,18 @@ def plot_importances(pipes: dict[str, Pipeline], features: list[str], top: int =
     """
     imps = {n: native_importance(p, features) for n, p in pipes.items()}
     save_table(pd.DataFrame(imps).sort_values(list(imps)[-1], ascending=False), "feature_importance")
-    fig, axes = plt.subplots(1, len(imps), figsize=(5 * len(imps), 6))
-    for ax, (name, imp) in zip(np.atleast_1d(axes), imps.items()):
+    ncols = 2 if len(imps) > 2 else len(imps)
+    nrows = int(np.ceil(len(imps) / ncols))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(FULL_WIDTH, 2.6 * nrows))
+    for ax, (name, imp) in zip(np.atleast_1d(axes).ravel(), imps.items()):
         s = imp.head(top)[::-1]
-        ax.barh(s.index, s.values, color="#4c72b0")
-        ax.set_title(name + (" (|coef|)" if name == "LogisticRegression" else ""))
-        ax.tick_params(axis="y", labelsize=8)
+        ax.barh(s.index, s.values, color="#4c72b0", height=0.7)
+        ax.set_title(name + (" (mean |coef|)" if name == "LogisticRegression" else ""))
+        ax.tick_params(axis="y", labelsize=6.3)
         ax.set_xlabel("normalised importance")
-    fig.suptitle("Figure 12 - Model-native feature importance (top 15)", fontweight="bold")
-    fig.tight_layout()
-    fig.savefig(config.FIGURES_DIR / "12_feature_importance.png", dpi=150, bbox_inches="tight")
+        ax.grid(axis="x", alpha=0.3)
+    fig.tight_layout(h_pad=0.8, w_pad=1.0)
+    save(fig, "12_feature_importance")
     return fig
 
 
@@ -166,6 +170,7 @@ def shap_by_family(sv: np.ndarray, y_family: pd.Series, features: list[str]) -> 
     return pd.DataFrame(out, index=features)
 
 
+@styled(6.5)
 def plot_shap_heatmap(by_family: pd.DataFrame, top: int = 15) -> plt.Figure:
     """Heatmap of the top SHAP features per family (each column scaled to its max).
 
@@ -182,17 +187,20 @@ def plot_shap_heatmap(by_family: pd.DataFrame, top: int = 15) -> plt.Figure:
     save_table(by_family, "shap_by_family")
     share = by_family / by_family.sum(axis=0)
     order = share.max(axis=1).sort_values(ascending=False).index[:top]
-    fig, ax = plt.subplots(figsize=(11, 7))
-    sns.heatmap(share.loc[order], annot=True, fmt=".2f", cmap="magma_r", ax=ax,
-                cbar_kws={"label": "share of the family's total mean |SHAP|"})
-    ax.set_title("Figure 13 - What identifies each family: mean |SHAP| towards the true class",
-                 fontweight="bold")
-    ax.set_xlabel("true family (SHAP for that class's output)")
+    fig, ax = plt.subplots(figsize=(HALF_WIDTH, 3.0))
+    # Values are annotated, so the colour bar is left out to keep the cells wide enough.
+    sns.heatmap(share.loc[order], annot=True, fmt=".2f", cmap="magma_r", ax=ax, cbar=False,
+                annot_kws={"fontsize": 5.6}, linewidths=0.3, linecolor="#eeeeee")
+    ax.set_xlabel("true family (share of its mean |SHAP|)")
+    ax.tick_params(axis="x", rotation=40, labelsize=6.2)
+    ax.tick_params(axis="y", labelsize=6.0)
+    plt.setp(ax.get_xticklabels(), ha="right", rotation_mode="anchor")
     fig.tight_layout()
-    fig.savefig(config.FIGURES_DIR / "13_shap_by_family.png", dpi=150, bbox_inches="tight")
+    save(fig, "13_shap_by_family")
     return fig
 
 
+@styled(7)
 def plot_shap_beeswarms(sv: np.ndarray, Xp: pd.DataFrame, families: list[str] | None = None,
                         top: int = 8) -> plt.Figure:
     """SHAP beeswarm-style plots for selected attack families.
@@ -212,22 +220,21 @@ def plot_shap_beeswarms(sv: np.ndarray, Xp: pd.DataFrame, families: list[str] | 
     families = families or ["DoS", "DDoS", "PortScan", "Web Attack"]
     pct = Xp.rank(pct=True).to_numpy()
     rng = np.random.default_rng(config.SEED)
-    fig, axes = plt.subplots(2, 2, figsize=(16, 10), gridspec_kw={"wspace": 0.55, "hspace": 0.3})
+    fig, axes = plt.subplots(2, 2, figsize=(FULL_WIDTH, 4.9), gridspec_kw={"wspace": 1.05, "hspace": 0.45})
     for ax, fam in zip(axes.ravel(), families):
         code = config.CLASS_TO_CODE[fam]
         vals = sv[:, :, code]
         order = np.argsort(np.abs(vals).mean(axis=0))[::-1][:top]
         for rank, j in enumerate(order[::-1]):
             y = rank + rng.uniform(-0.3, 0.3, len(vals))
-            ax.scatter(vals[:, j], y, c=pct[:, j], cmap="coolwarm", s=4, alpha=0.6, vmin=0, vmax=1)
-        ax.set_yticks(range(len(order)), [Xp.columns[j] for j in order[::-1]], fontsize=8)
+            ax.scatter(vals[:, j], y, c=pct[:, j], cmap="coolwarm", s=1.5, alpha=0.6, vmin=0, vmax=1, lw=0)
+        ax.set_yticks(range(len(order)), [Xp.columns[j] for j in order[::-1]], fontsize=6.3)
         ax.axvline(0, color="#888888", lw=0.8)
         ax.set_title(f"SHAP towards '{fam}'")
         ax.set_xlabel("SHAP value (model output units)")
     sm = plt.cm.ScalarMappable(cmap="coolwarm", norm=plt.Normalize(0, 1))
-    fig.colorbar(sm, ax=axes, shrink=0.6, label="feature value percentile (low -> high)")
-    fig.suptitle("Figure 14 - SHAP beeswarm for four attack families", fontweight="bold")
-    fig.savefig(config.FIGURES_DIR / "14_shap_beeswarm.png", dpi=150, bbox_inches="tight")
+    fig.colorbar(sm, ax=axes, shrink=0.6, pad=0.02, label="feature value percentile (low to high)")
+    save(fig, "14_shap_beeswarm")
     return fig
 
 
@@ -247,6 +254,7 @@ def family_medians(df: pd.DataFrame, features: list[str]) -> pd.DataFrame:
     return df.groupby(config.TARGET_COL)[features].median().reindex(config.CLASS_ORDER)
 
 
+@styled(6.5)
 def plot_attack_distributions(df: pd.DataFrame, features: list[str], per_class: int = 5_000) -> plt.Figure:
     """Violin plots (symlog) of the most explanatory features for every family.
 
@@ -262,23 +270,23 @@ def plot_attack_distributions(df: pd.DataFrame, features: list[str], per_class: 
     n = len(features)
     cols = 4
     rows = int(np.ceil(n / cols))
-    fig, axes = plt.subplots(rows, cols, figsize=(18, 4.2 * rows))
+    fig, axes = plt.subplots(rows, cols, figsize=(FULL_WIDTH, 2.25 * rows), sharex=True)
     for ax, feat in zip(axes.ravel(), features):
         vals = sample[[feat, config.TARGET_COL]].copy()
         vals[feat] = np.sign(vals[feat]) * np.log10(1 + np.abs(vals[feat]))
         sns.violinplot(data=vals, x=config.TARGET_COL, y=feat, order=config.CLASS_ORDER, hue=config.TARGET_COL,
                        palette=FAMILY_COLORS, ax=ax, cut=0, density_norm="width", inner="quartile",
-                       legend=False, linewidth=0.6)
-        ax.set_ylabel("sign(x)*log10(1+|x|)")
+                       legend=False, linewidth=0.4)
+        ax.set_ylabel("sign(x)·log10(1+|x|)" if ax in axes[:, 0] else "")
         ax.set_xlabel("")
-        ax.set_title(feat)
-        ax.tick_params(axis="x", rotation=45, labelsize=8)
+        ax.set_title(feat, fontsize=6.6)
+        ax.tick_params(axis="x", rotation=45, labelsize=6)
+        ax.tick_params(axis="y", labelsize=5.8)
+        plt.setp(ax.get_xticklabels(), ha="right", rotation_mode="anchor")
     for ax in axes.ravel()[n:]:
         ax.axis("off")
-    fig.suptitle("Figure 15 - Distribution of the most explanatory features per attack family",
-                 fontweight="bold")
-    fig.tight_layout()
-    fig.savefig(config.FIGURES_DIR / "15_attack_feature_distributions.png", dpi=150, bbox_inches="tight")
+    fig.tight_layout(h_pad=0.5, w_pad=0.5)
+    save(fig, "15_attack_feature_distributions")
     return fig
 
 

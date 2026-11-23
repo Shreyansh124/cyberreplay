@@ -76,6 +76,13 @@ They are written from the results of the full run (reports/results).
   strongest features.
 - We fitted all three filters only on the training split, leaving the test split with no role in feature selection.
 
+@@ split
+- The stratified 80/20 split of the 2,199,780 de-duplicated flows gives 1,759,824 training and 439,956 test flows. Every
+  family keeps the same share in both parts (test share 0.19-0.20), so even Rare has 38 training and 9 test flows.
+- De-duplication changes the family sizes a lot: PortScan falls from 158,930 raw flows to 1,958 unique ones, while DDoS
+  and Rare lose almost nothing. The test split therefore holds only 392 PortScan, 288 Bot and 9 Rare flows, which is why
+  the per-class scores of these families move in large steps.
+
 @@ cv
 - With default parameters, 5-fold CV gives macro F1 scores of XGBoost 0.960 ± 0.007, Random Forest 0.954 ± 0.012,
   Decision Tree 0.945 ± 0.018 and Logistic Regression 0.534 ± 0.002.
@@ -140,6 +147,32 @@ They are written from the results of the full run (reports/results).
   alternative, while Decision Tree suits cases where inference speed and interpretability matter most.
 - The dashboard uses our saved pipeline, which combines feature selection, imputation and the model in about 5.5 MB
   compressed.
+
+@@ roc
+- The refitted models reproduce the stored test metrics exactly, and the saved best model predicts the same class for
+  every test flow as the refit.
+- Balanced accuracy equals macro recall for every model (Random Forest 0.9329), as it should for a multi-class problem.
+  The majority-class baseline reaches 0.847 accuracy but only 0.125 balanced accuracy, 0.115 macro F1 and ROC-AUC 0.5,
+  which shows how little accuracy says on this data.
+- On one-vs-rest ROC-AUC (macro) XGBoost leads with 0.992, then Logistic Regression 0.979, Random Forest 0.972 and
+  Decision Tree 0.957. For Random Forest every family except Rare has AUC of at least 0.997; four of the nine Rare test
+  flows get a Rare probability of zero, which caps its Rare AUC at 0.778. With only nine positives the Rare curve is
+  noisy and moves in steps of 1/9.
+- The ranking by AUC differs from the ranking by macro F1 because AUC judges how well the probabilities order the flows
+  at every threshold, while macro F1 judges the actual predicted classes.
+
+@@ fit
+- On the validation slice carved from the training split, Logistic Regression scores 0.720 on its own rows and 0.716 on
+  new rows: almost no gap, but too low, so it underfits (high bias). The Decision Tree drops from 0.973 to 0.918 (gap
+  0.055, overfit), XGBoost from 0.971 to 0.944 (gap 0.026, slight overfit) and Random Forest from 0.965 to 0.948 (gap
+  0.017, good fit). The validation ranking (Random Forest, XGBoost, Decision Tree, Logistic Regression) matches the test
+  ranking.
+- The learning curves show the same picture. Logistic Regression's training and CV scores meet at about 0.84 and stop
+  improving, so more data would not help. Random Forest's CV score keeps rising, from 0.873 at 13k rows to 0.960 at 133k
+  rows, while its gap to the training score shrinks from 0.089 to 0.028.
+- The Decision Tree validation curve moves from underfitting (0.086 at depth 2) to overfitting: beyond depth 15 the
+  training score reaches 0.98-0.99 while CV stays at 0.94-0.95. XGBoost's CV score peaks at 0.969 around 200-300 rounds
+  and slips to 0.967 at 600 rounds while the training score keeps rising, so the tuned 300 rounds sit near the best point.
 
 @@ importance
 - Across tree models, **payload size** features rank first (`Total Length of Fwd Packets`, `Fwd Packet Length Max`,

@@ -9,17 +9,24 @@ traffic through a Streamlit dashboard with live predictions.
 
 ## Results (held-out test split, 439,956 flows)
 
-| Model | Accuracy | Macro precision | Macro recall | Macro F1 | BENIGN false-positive rate | Train time (1.76 M flows) | Inference (440k flows) |
-|---|---|---|---|---|---|---|---|
-| Logistic Regression | 0.9828 | 0.6497 | 0.8804 | 0.7147 | 1.64% | 231 s | 0.30 s |
-| Decision Tree | 0.9988 | 0.8781 | 0.9140 | 0.8950 | 0.10% | 32 s | 0.09 s |
-| **Random Forest** (final) | 0.9989 | 0.9360 | 0.9329 | **0.9206** | 0.11% | 92 s | 0.50 s |
-| XGBoost | 0.9990 | 0.9111 | 0.9296 | 0.9117 | 0.11% | 62 s | 1.39 s |
+| Model | Accuracy | Balanced accuracy | Macro precision | Macro recall | Macro F1 | ROC-AUC (OvR, macro) | BENIGN false-positive rate | Train time (1.76 M flows) | Inference (440k flows) |
+|---|---|---|---|---|---|---|---|---|---|
+| Majority baseline (Dummy) | 0.8470 | 0.1250 | 0.1059 | 0.1250 | 0.1146 | 0.5000 | 0.00% | - | - |
+| Logistic Regression | 0.9828 | 0.8804 | 0.6497 | 0.8804 | 0.7147 | 0.9791 | 1.64% | 231 s | 0.29 s |
+| Decision Tree | 0.9988 | 0.9140 | 0.8781 | 0.9140 | 0.8950 | 0.9571 | 0.10% | 32 s | 0.09 s |
+| **Random Forest** (final) | 0.9989 | 0.9329 | 0.9360 | 0.9329 | **0.9206** | 0.9716 | 0.11% | 92 s | 0.48 s |
+| XGBoost | 0.9990 | 0.9296 | 0.9111 | 0.9296 | 0.9117 | 0.9918 | 0.11% | 62 s | 1.36 s |
 
 Random Forest is the final model: best macro F1 (95% bootstrap CI 0.864-0.947, ahead of XGBoost in 99% of paired
 resamples), best minority-class recall (0.893), 0.11% BENIGN false alarms and ~1.1 µs per flow. The derived binary
-`is_malicious` reaches F1 0.9965 (precision 0.9938, recall 0.9993). Full tables: `reports/results/`; discussion:
-`reports/report.pdf`.
+`is_malicious` reaches F1 0.9965 (precision 0.9938, recall 0.9993). XGBoost has the higher one-vs-rest ROC-AUC
+because Random Forest gives four of the nine Rare test flows a Rare probability of zero.
+
+**Over/underfitting** (validation slice of 20% carved from the training split, `reports/results/fit_diagnosis.csv`):
+Logistic Regression underfits (train 0.720 / validation 0.716 macro F1), Decision Tree overfits (0.973 / 0.918),
+XGBoost overfits slightly (0.971 / 0.944) and Random Forest fits well (0.965 / 0.948). Learning and validation
+curves are in `reports/figures/20_learning_curves.png` and `21_validation_curves.png`. Full tables:
+`reports/results/`; discussion: `reports/report.pdf`.
 
 ![Dashboard - live replay](reports/figures/dashboard_live_replay.png)
 
@@ -27,16 +34,16 @@ resamples), best minority-class recall (0.893), 0.11% BENIGN false alarms and ~1
 
 | Path | Content |
 |---|---|
-| `src/cyberreplay/` | Python package: `config`, `data`, `clean`, `eda`, `features`, `models`, `tuning`, `evaluate`, `explain`, `replay`, `utils`, `pipeline` (CLI) |
+| `src/cyberreplay/` | Python package: `config`, `data`, `clean`, `eda`, `features`, `models`, `tuning`, `evaluate`, `diagnostics` (ROC, baseline, over/underfitting), `explain`, `replay`, `plotstyle`, `utils`, `pipeline` (CLI) |
 | `notebooks/CyberReplay.ipynb` | Main deliverable - executed end to end, Colab-ready (outputs saved) |
 | `app/streamlit_app.py` | Dashboard: overview, live replay, interactive attack patterns, SHAP explanation per detection |
-| `reports/report.md`, `reports/report.pdf` | Final report (Markdown source and 4-page PDF) |
+| `reports/report.md`, `reports/report.pdf` | Final report (Markdown source and PDF: 5-page main report with sections 1-7 and References, then Section 8 with explained code excerpts and a figure appendix) |
 | `reports/notebook.pdf` | Executed notebook exported to PDF |
 | `reports/figures/` | All plots (PNG) |
 | `reports/results/` | All metric tables (CSV + Markdown), tuning results, best parameters |
 | `models/best_model.joblib` | Best pipeline (feature selection + preprocessing + model), xz-compressed, with `best_model_metadata.json` |
 | `data/sample/cicids2017_sample.csv.gz` | Stratified 29,999-flow sample of the **test split** (all 8 families) - dataset-sample deliverable and dashboard demo data |
-| `scripts/` | `build_notebook.py` (generates the notebook), `build_pdfs.py` (report + notebook PDFs) |
+| `scripts/` | `build_notebook.py` (generates the notebook), `build_pdfs.py` (report + notebook PDFs), `check_report.py` (page budget, names, code excerpts, numbers) |
 | `tests/` | Unit tests and a headless dashboard test (`streamlit.testing.v1.AppTest`) |
 | `PROGRESS.md`, `DECISIONS.md` | Build checklist and the log of every design decision |
 
@@ -73,6 +80,8 @@ PYTHONPATH=src python -m cyberreplay.pipeline --download
 #   --data-dir PATH   use an existing copy of the CSVs (searched recursively)
 #   --force           recompute cached tuning results and fitted models
 #   --quick           2-3 minute smoke test (not for reported results)
+PYTHONPATH=src python -m cyberreplay.pipeline --diagnostics   # reproduction check, ROC-AUC, baseline, fit diagnosis
+PYTHONPATH=src python -m cyberreplay.pipeline --figures       # redraw every figure from caches and stored tables
 
 streamlit run app/streamlit_app.py     # dashboard on http://localhost:8501
 pytest tests                           # unit tests + headless dashboard test
@@ -80,6 +89,7 @@ pytest tests                           # unit tests + headless dashboard test
 python scripts/build_notebook.py       # regenerate the notebook from its source
 jupyter nbconvert --to notebook --execute --inplace notebooks/CyberReplay.ipynb --ExecutePreprocessor.timeout=-1
 python scripts/build_pdfs.py           # reports/report.pdf + reports/notebook.pdf (needs Chrome/Chromium)
+python scripts/check_report.py         # automated checks of the built report
 ```
 
 A full run with `--force` took 42 minutes on 8 CPUs / 47 GB RAM (no GPU). Without `--force`, the committed

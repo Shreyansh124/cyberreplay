@@ -139,6 +139,17 @@ CLASS_ORDER: list[str] = [
     "Rare",
 ]
 CLASS_TO_CODE: dict[str, int] = {c: i for i, c in enumerate(CLASS_ORDER)}
+# One-line meaning of each family (dataset table in the report and notebook).
+FAMILY_MEANING: dict[str, str] = {
+    "BENIGN": "normal traffic of the lab users (web, e-mail, FTP, SSH)",
+    "DoS": "one host floods or starves the web server",
+    "DDoS": "many hosts flood the web server (LOIC)",
+    "PortScan": "Nmap probes that look for open ports",
+    "Bot": "Ares botnet hosts talking to their C&C server",
+    "Brute Force": "password guessing on FTP and SSH (Patator)",
+    "Web Attack": "login guessing, XSS and SQL injection on a web app",
+    "Rare": "internal infiltration and the Heartbleed memory leak",
+}
 
 # --------------------------------------------------------------------------
 # Experiment constants
@@ -157,6 +168,21 @@ IMPORTANCE_CUMULATIVE = 0.99      # keep features covering 99% of RF importance
 OUTLIER_QUANTILE = 0.999          # upper cap for the scale-sensitive (LogReg) pipeline
 DATASET_SAMPLE_ROWS = 30_000      # size of the committed dataset sample
 SHAP_SAMPLE_ROWS = 2_000
+
+# Fit diagnostics (report section 6). The validation slice is carved from the
+# training split only; the test split is never touched.
+DIAG_VALIDATION_SIZE = 0.20
+CURVE_SAMPLE_ROWS = 200_000       # minority-preserving training subsample for learning/validation curves
+CURVE_FOLDS = 3
+LEARNING_CURVE_FRACTIONS: list[float] = [0.1, 0.25, 0.5, 0.75, 1.0]
+DT_DEPTHS: list[int | None] = [2, 4, 6, 8, 10, 12, 15, 20, 30, None]
+XGB_ROUNDS: list[int] = [10, 25, 50, 100, 150, 200, 300, 400, 600]
+# Diagnosis rule: train macro F1 below UNDERFIT_TRAIN_F1 = underfit (high bias);
+# otherwise a train - validation gap above OVERFIT_GAP = overfit (high variance),
+# above SLIGHT_OVERFIT_GAP = slight overfit, else good fit.
+UNDERFIT_TRAIN_F1 = 0.90
+OVERFIT_GAP = 0.05
+SLIGHT_OVERFIT_GAP = 0.02
 
 # Parallelism: 8 CPUs on the build VM; leave headroom to avoid OOM.
 N_JOBS: int = max(1, min(8, os.cpu_count() or 1))

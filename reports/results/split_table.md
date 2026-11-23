@@ -1,0 +1,11 @@
+| family      | raw_labels                                                             | meaning                                                 |   raw_flows |   unique_flows |   train |   test |   test_share |
+|:------------|:-----------------------------------------------------------------------|:--------------------------------------------------------|------------:|---------------:|--------:|-------:|-------------:|
+| BENIGN      | BENIGN                                                                 | normal traffic of the lab users (web, e-mail, FTP, SSH) |     2273097 |        1863290 | 1490632 | 372658 |       0.2000 |
+| DoS         | DoS Hulk, DoS GoldenEye, DoS slowloris, DoS Slowhttptest               | one host floods or starves the web server               |      252661 |         193733 |  154986 |  38747 |       0.2000 |
+| DDoS        | DDoS                                                                   | many hosts flood the web server (LOIC)                  |      128027 |         128016 |  102413 |  25603 |       0.2000 |
+| PortScan    | PortScan                                                               | Nmap probes that look for open ports                    |      158930 |           1958 |    1566 |    392 |       0.2002 |
+| Bot         | Bot                                                                    | Ares botnet hosts talking to their C&C server           |        1966 |           1441 |    1153 |    288 |       0.1999 |
+| Brute Force | FTP-Patator, SSH-Patator                                               | password guessing on FTP and SSH (Patator)              |       13835 |           9152 |    7322 |   1830 |       0.2000 |
+| Web Attack  | Web Attack - Brute Force, Web Attack - XSS, Web Attack - Sql Injection | login guessing, XSS and SQL injection on a web app      |        2180 |           2143 |    1714 |    429 |       0.2002 |
+| Rare        | Infiltration, Heartbleed                                               | internal infiltration and the Heartbleed memory leak    |          47 |             47 |      38 |      9 |       0.1915 |
+| Total       |                                                                        |                                                         |     2830743 |        2199780 | 1759824 | 439956 |       0.2000 |
