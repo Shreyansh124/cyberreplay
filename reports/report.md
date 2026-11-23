@@ -1,9 +1,16 @@
 # CyberReplay: Machine Learning-Based Network Intrusion Detection and Attack Analysis
 
 <div class="title-block">
-<span style="white-space:nowrap"><b>Shreyansh Krishna</b> (2026CS05055)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Aamir Lanker</b> (2026CS05054)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Harshith G. D</b> (2026CS05053)</span><br>
-Course: Machine Learning<br>
-Track A (library-based ML) · Code, notebook and dashboard: <code>github.com/Shreyansh124/cyberreplay</code>
+<span style="white-space:nowrap"><b>Shreyansh Krishna</b> (2026CS05055)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Aamir Lanker</b> (2026CS05054)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Harshith G. D</b> (2026CS05053)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Anil Pandey</b> (2026CS05031)</span><br>
+Course: Machine Learning · Track A (library-based ML)
+</div>
+
+<div style="border:1px solid #888; background:#f4f4f4; padding:4pt 7pt; margin:2pt 0 6pt 0;" markdown="1">
+**Summary of results.** We tuned and compared four models on 439,956 held-out test flows. **Random Forest is our final
+model.** It has the best macro F1 (0.921, against 0.912 for XGBoost, 0.895 for Decision Tree and 0.715 for Logistic
+Regression), the best minority-class recall (0.893), accuracy 0.9989 and a 0.11% BENIGN false-alarm rate, and it
+predicts in about 1.1 µs per flow, 2.8× faster than XGBoost. As a malicious-versus-benign detector it reaches F1 0.997
+(precision 0.9938, recall 0.9993).
 </div>
 
 ## 1. Problem and motivation
@@ -23,7 +30,7 @@ with 80+ summary variables across 15 labels. This benchmark combines real protoc
 to ordered replay. We load the *GeneratedLabelledFlows / TrafficLabelling* CSVs, which retain Flow ID, IPs, ports and
 Timestamp. UNB publishes the dataset at <https://www.unb.ca/cic/datasets/ids-2017.html> but gates downloads behind a
 registration form, so our script fetches the byte-for-byte identical archive from a Hugging Face mirror and verifies its
-SHA-256 hash; the file is `csvs/GeneratedLabelledFlows.zip` at <https://huggingface.co/datasets/bencorn/CICIDS2017>. The repo ships a stratified 29,999-flow
+SHA-256 hash; the file is `csvs/GeneratedLabelledFlows.zip` at <https://huggingface.co/datasets/bencorn/CICIDS2017>. Our project ships a stratified 29,999-flow
 subset under `data/sample/`. We merge Hulk, GoldenEye, slowloris and Slowhttptest as **DoS**; FTP-/SSH-Patator as
 **Brute Force**; Brute Force, XSS and SQL Injection as **Web Attack**; and Infiltration (36 flows) plus Heartbleed (11)
 as **Rare**, while leaving DDoS, PortScan and Bot intact. Five flows from the committed sample show the raw label next
@@ -183,8 +190,8 @@ seed 42. One command, `PYTHONPATH=src python -m cyberreplay.pipeline --download`
 rebuilds the result tables, Figures 1-16 and the saved model; it reuses the committed tuning results unless `--force` is
 given, and our full `--force` run took about 41.5 min on 8 CPUs. The fitted selection, imputation and Random Forest
 pipeline is stored as `models/best_model.joblib`, which the notebook and dashboard load directly. Google Colab is our
-virtual lab: the *Open in Colab* link in the README opens the notebook, whose first cell does a plain clone of the
-public repository and installs the pinned requirements, so no credentials or local setup are needed.
+virtual lab: the notebook's first cell fetches the project code and installs the pinned requirements, so it runs in
+Colab with no credentials or local setup.
 `requirements.txt` fixes the versions we ran: Python 3.12, scikit-learn 1.9.1 [3], XGBoost 3.4.1 [4], pandas
 3.1.1 [10], NumPy 2.5.5 [11], SHAP 0.54.1 [5], Streamlit 1.67.0 [8], Plotly 7.1.0 [9], Matplotlib 3.11.2 [12] and
 seaborn 0.13.2 [13].
@@ -512,5 +519,4 @@ the code does and why it is written that way.
 
 **Full program.** These excerpts cover the core of the method only. The complete code (about 3,500 lines in the
 `cyberreplay` package and the dashboard, plus build scripts and tests) is too long to list here. The executed notebook
-`reports/notebook.pdf` runs every stage with its outputs, and the full source is in the repository at
-<https://github.com/Shreyansh124/cyberreplay>.
+`reports/notebook.pdf` runs every stage and shows all of its outputs.
