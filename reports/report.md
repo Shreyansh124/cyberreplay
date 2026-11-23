@@ -1,69 +1,76 @@
 # CyberReplay: Machine Learning-Based Network Intrusion Detection and Attack Analysis
 
 <div class="title-block">
-<b>[Student Name]</b> &nbsp;·&nbsp; <b>[Roll Number]</b> &nbsp;·&nbsp; <b>[Course]</b> &nbsp;·&nbsp; <b>[Institute]</b><br>
+<span style="white-space:nowrap"><b>Shreyansh Krishna</b> (2026CS05055)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Aamir Lanker</b> (2026CS05054)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Harshith G. D</b> (2026CS05053)</span><br>
+Course: Machine Learning<br>
 Track A (library-based ML) · Code, notebook and dashboard: <code>github.com/Shreyansh124/cyberreplay</code>
 </div>
 
 ## 1. Problem and motivation
 
-Signature-based intrusion detection systems miss new variants of known attacks and produce alerts without context. A
-flow-level machine-learning classifier can tell an analyst not only *that* a connection is malicious but *which kind* of
-attack it is, so alerts can be triaged by family. CyberReplay classifies network flows into **8 families** (BENIGN, DoS,
-DDoS, PortScan, Bot, Brute Force, Web Attack, Rare), derives a binary `is_malicious` flag from the prediction
-(predicted family ≠ BENIGN), compares four Track A models, explains every detection with SHAP and replays the captured
-traffic through a Streamlit dashboard. The classes are extremely imbalanced, so the primary metric is **macro F1**.
+Fixed-signature intrusion detectors miss altered forms of familiar threats and raise alerts with little context. By
+training machine-learning classifiers on flow statistics, we can both spot malicious traffic and identify its attack
+category for faster triage. CyberReplay sorts flows into **8 families** (BENIGN, DoS, DDoS, PortScan, Bot, Brute Force,
+Web Attack, Rare) and sets a binary `is_malicious` flag whenever the predicted family ≠ BENIGN. We benchmark four Track
+A models, attach SHAP attributions to each alert, and replay recorded traffic in a Streamlit app. Heavy class imbalance
+makes **macro F1** our main metric.
 
 ## 2. Dataset
 
-**CIC-IDS2017** (Canadian Institute for Cybersecurity, UNB) [1]: five days (3-7 July 2017) of traffic from a 25-host
-testbed with scripted attacks, converted by CICFlowMeter into bidirectional flows with 80+ statistical features and
-15 labels. It is a standard, non-trivial IDS benchmark: 2,830,743 flows, real protocols, strong imbalance and timestamps
-that allow a chronological replay. We use the *GeneratedLabelledFlows / TrafficLabelling* CSVs (with Flow ID, IPs, ports,
-Timestamp). Source: official page <https://www.unb.ca/cic/datasets/ids-2017.html>; because the official download now sits
-behind a registration form, the automated download fetches the byte-identical archive from the Hugging Face mirror
-<https://huggingface.co/datasets/bencorn/CICIDS2017> (`csvs/GeneratedLabelledFlows.zip`, SHA-256 verified). A stratified
-29,999-flow sample is included in the repository (`data/sample/`). Families: **DoS** = Hulk, GoldenEye, slowloris,
-Slowhttptest; **Brute Force** = FTP-/SSH-Patator; **Web Attack** = Brute Force, XSS, SQL Injection; **Rare** =
-Infiltration (36 flows) + Heartbleed (11); DDoS, PortScan and Bot are kept as they are.
+We use **CIC-IDS2017** [1], captured by the Canadian Institute for Cybersecurity at UNB over five days (3-7 July 2017)
+on a 25-host lab network running scripted attacks. CICFlowMeter converts traffic into 2,830,743 bidirectional flows
+with 80+ summary variables across 15 labels. This benchmark combines real protocols, heavy skew and timestamps suited
+to ordered replay. We load the *GeneratedLabelledFlows / TrafficLabelling* CSVs, which retain Flow ID, IPs, ports and
+Timestamp. UNB publishes the dataset at <https://www.unb.ca/cic/datasets/ids-2017.html> but gates downloads behind a
+registration form, so our script fetches the byte-for-byte identical archive from a Hugging Face mirror and verifies its
+SHA-256 hash; the file is `csvs/GeneratedLabelledFlows.zip` at <https://huggingface.co/datasets/bencorn/CICIDS2017>. The repo ships a stratified 29,999-flow
+subset under `data/sample/`. We merge Hulk, GoldenEye, slowloris and Slowhttptest as **DoS**; FTP-/SSH-Patator as
+**Brute Force**; Brute Force, XSS and SQL Injection as **Web Attack**; and Infiltration (36 flows) plus Heartbleed (11)
+as **Rare**, while leaving DDoS, PortScan and Bot intact.
 
 ## 3. Exploratory data analysis - key findings
 
 <div class="cols"><img src="figures/01_class_distribution.png"><img src="figures/03_attack_day_matrix.png"></div>
-<p class="fig">Figure 1 - class distribution (log scale) · Figure 3 - every attack type occurs on a single capture day.</p>
+<p class="fig">Figure 1 - flow counts by class on a logarithmic scale · Figure 3 - each attack type appears on only one capture day.</p>
 
-- **Imbalance:** BENIGN is 80.3% of the flows, Bot 0.069% and Rare 0.002% (BENIGN:Rare ≈ 48,000:1), so accuracy is
-  meaningless (constant BENIGN scores 80%) and class weighting is needed.
-- **Schedule:** each attack is a short, intense burst on one day (Fig. 3; e.g. DoS Hulk peaks at ~70k flows/5 min). Hence
-  GroupKFold by day is infeasible - holding out a day removes its attack classes from training entirely.
-- **Data quality:** 4,376 infinite and 1,358 missing rates (zero-duration flows), 3,545 invalid negatives and **630,963
-  exact duplicates (22.3%)**; 98.8% of PortScan flows are identical one/two-packet probes.
-- **Behaviour:** DoS flows are long (median ≈ 100 s) with large forward payloads, DDoS flows have tiny uniform packets,
-  PortScan and Web Attack flows mostly carry no payload, and Rare flows are huge and long. Features are heavy-tailed over
-  6-8 orders of magnitude; 48.9% of Rare rows contain a value above the global 99.9th percentile, i.e. for the rarest
-  attacks extreme values are the signal. 50 feature pairs have |r| > 0.95 (9 exact copies, e.g. `Subflow Fwd Bytes` =
-  `Total Length of Fwd Packets`).
+- **Imbalance:** Benign traffic makes up 80.3% of flows, while Rare holds 0.002% and Bot 0.069% (BENIGN:Rare ≈
+  48,000:1). Predicting BENIGN everywhere already scores 80% accuracy, so plain accuracy misleads us and we apply class
+  weighting.
+- **Schedule:** Attacks hit in brief, heavy bursts on one day each (Fig. 3), with DoS Hulk peaking at ~70k flows/5 min.
+  Day-based GroupKFold fails because holding out any day drops its attack families from training completely.
+- **Data quality:** Zero-duration flows yield 4,376 infinite rates and 1,358 missing values. We also found **630,963
+  exact duplicates (22.3%)** and 3,545 invalid negatives; among PortScan rows, 98.8% repeat identical one- or
+  two-packet probes.
+- **Behaviour:** DoS connections run long (median ≈ 100 s) with heavy forward payloads, whereas DDoS sends tiny uniform
+  packets. PortScan and Web Attack mostly omit payload, while Rare connections are both bulky and prolonged. Heavy-tailed
+  variables span 6-8 orders of magnitude, and 48.9% of Rare rows exceed the overall 99.9th percentile, showing extreme
+  values signal the rarest attacks. Also, 50 column pairs have |r| > 0.95, including 9 identical copies like
+  `Subflow Fwd Bytes` = `Total Length of Fwd Packets`.
 
 ## 4. Preprocessing and feature engineering
 
-- **Cleaning (deterministic, before the split):** labels normalised (cp1252 en dash) and mapped to families; ±inf → NaN;
-  impossible negatives clipped to 0 (the `-1` "no TCP window" sentinel of `Init_Win_bytes_*` kept); duplicates over the
-  feature columns + family removed **before** splitting (2,199,780 flows remain). 622 rows with conflicting labels are kept.
-- **Leakage control:** stratified 80/20 split (1,759,824 train / 439,956 test). Flow ID, IPs, both ports and Timestamp are
-  never features. Every fitted step - median imputation, outlier capping, scaling, feature selection - uses training data
-  only, and preprocessing lives inside sklearn `Pipeline`s, so CV folds are also leak-free.
-- **Feature selection (train only):** variance filter (8 constant columns) → greedy correlation filter |r| > 0.95 (25
-  redundant twins) → class-weighted Random Forest importance, 99% cumulative (7 more): **77 → 37 features**.
-- **Model-specific preprocessing:** all models get column selection + median imputation; Logistic Regression additionally
-  gets capping at the training 99.9th percentile, signed `log1p` and `StandardScaler`. Trees see uncapped values so that
-  extreme Rare flows stay separable - no attack row is ever deleted.
-- **Imbalance:** class weights only (no SMOTE). Each estimator converts a `class_weighting` hyperparameter
-  (`balanced` = n/(k·n<sub>c</sub>) or its square root) into sample weights inside `fit`.
+- **Cleaning (deterministic, before the split):** We normalised labels (fixing the cp1252 en dash), mapped them to
+  families, replaced ±inf with NaN, and clipped invalid negatives to 0 while keeping the `-1` "no TCP window" flag in
+  `Init_Win_bytes_*`. Before splitting, we deduplicated rows on features plus target family, leaving **2,199,780
+  flows**, and retained 622 conflicting-label rows.
+- **Leakage control:** We created a stratified 80/20 partition with 1,759,824 training and 439,956 test rows, excluding
+  Flow ID, IPs, source/destination ports and Timestamp from features. All fitted steps (imputing medians, capping
+  outliers, scaling and selecting features) run only on training data within sklearn `Pipeline`s, keeping CV folds
+  leak-free.
+- **Feature selection (train only):** On training data alone, we dropped 8 constant columns, used a greedy |r| > 0.95
+  filter to drop 25 redundant columns, and pruned 7 more beyond 99% cumulative importance of a class-weighted Random
+  Forest (**77 → 37 features**).
+- **Model-specific preprocessing:** Every model runs column selection and median imputation. Logistic Regression adds
+  training-set 99.9th-percentile capping, a signed `log1p` transform and `StandardScaler`, whereas trees use uncapped
+  inputs so extreme Rare rows stay separable, and we never drop attack rows as outliers.
+- **Imbalance:** We use class weights without SMOTE. Inside `fit`, each estimator converts `class_weighting` into
+  sample weights using `balanced` = n/(k·n<sub>c</sub>) or its square root.
 
 ## 5. Models, cross-validation and tuning
 
-Four models: multinomial **Logistic Regression** (linear baseline), **Decision Tree** (CART), **Random Forest** and
-**XGBoost** (hist). CV and tuning use a 500k-row sample of the *training* split that keeps every row of the small families.
+We evaluate three tree methods (**Decision Tree** (CART), **Random Forest** and **XGBoost** (hist)) alongside a
+multinomial **Logistic Regression** baseline. We run CV and hyperparameter search on a 500k-row *training* subset that
+keeps every minority-family row.
 
 | Model | 5-fold CV macro F1 (defaults) | Tuned 3-fold CV macro F1 | Best hyperparameters (RandomizedSearchCV, `f1_macro`) |
 |---|---|---|---|
@@ -72,9 +79,10 @@ Four models: multinomial **Logistic Regression** (linear baseline), **Decision T
 | RandomForest | 0.954 ± 0.012 | 0.963 | 150 trees, max_depth 20, max_features 0.5, entropy (20) |
 | XGBoost | 0.960 ± 0.007 | 0.966 | 300 rounds, depth 6, learning rate 0.24, subsample 0.77, colsample 0.68 (20) |
 
-Per-fold scores of the tree models vary by only ±0.007-0.018 (accuracy ≥ 0.998 in every fold); with fully balanced weights
-Logistic Regression has macro recall 0.95 but precision 0.47 - tuning the weighting strength lifted it by +0.26. Tree models
-keep fully balanced weights. The tuned pipelines were then refitted on the **full** training split.
+Across folds, tree macro F1 varies by just ±0.007-0.018 and per-fold accuracy never drops below 0.998. Logistic
+Regression under fully balanced weights gets 0.95 macro recall but 0.47 macro precision; relaxing the weight strength
+raised its macro F1 by +0.26. By contrast, the tree classifiers retain fully balanced weights, and we fit each tuned
+pipeline on the **full** training data.
 
 ## 6. Results on the held-out test split
 
@@ -85,67 +93,73 @@ keep fully balanced weights. The tuned pipelines were then refitted on the **ful
 | **RandomForest** | 0.9989 | **0.9360** | **0.9329** | **0.9206** | 0.864-0.947 | **0.893** | 0.11% | 92 s | 0.50 s |
 | XGBoost | **0.9990** | 0.9111 | 0.9296 | 0.9117 | 0.857-0.943 | 0.888 | 0.11% | 62 s | 1.39 s |
 
-Binary `is_malicious` (derived): tree models reach F1 0.996-0.997 (Random Forest: precision 0.9938, recall 0.9993);
-Logistic Regression 0.947. CIs are paired bootstrap intervals (300 resamples); Random Forest beats XGBoost in 99% of them.
+When we derive binary `is_malicious`, tree models reach F1 of 0.996-0.997 (Random Forest: 0.9938 precision, 0.9993
+recall) versus 0.947 for Logistic Regression. Paired bootstrap over 300 resamples gives the CIs, with Random Forest
+outperforming XGBoost in 99% of draws.
 
 <div class="cols"><img src="figures/09_confusion_matrices.png"><img src="figures/11_per_class_f1.png"></div>
-<p class="fig">Figure 9 - row-normalised test confusion matrices · Figure 11 - per-class test F1 (support in brackets).</p>
+<p class="fig">Figure 9 - test confusion matrices normalised by row · Figure 11 - test F1 for each class, with support shown in brackets.</p>
 
-BENIGN, DoS, DDoS and Brute Force are solved (F1 ≥ 0.995). Almost every error involves BENIGN: for Random Forest 202 benign
-flows are predicted as Bot and 157 as DoS, while 4 of the 9 Rare flows (all Infiltration) and 12 of 288 Bot flows are missed.
-Attack families are almost never confused with each other. Test macro F1 is below CV (≈0.96) because the test split has
-the real BENIGN share (Bot precision falls to 0.58) and because Rare has only 9 test flows (one miss ≈ −0.1 F1 on that
-class); without Rare the tree models score 0.947-0.950.
+Four classes (BENIGN, DoS, DDoS and Brute Force) are effectively solved at F1 ≥ 0.995, and attacks are rarely confused
+with each other. Nearly every error involves BENIGN: Random Forest flags 202 benign flows as Bot plus 157 as DoS, and
+misses 12 of 288 Bot flows along with 4 out of 9 Rare rows (each an Infiltration flow). Holdout macro F1 trails CV
+(≈0.96) because the real benign share pulls Bot precision down to 0.58 and Rare has just 9 test flows (each miss costs
+≈ −0.1 class F1). Excluding Rare lifts the tree models to 0.947-0.950.
 
-**Final model: Random Forest.** It has the best test macro F1 and macro F1 without Rare (0.950), the best minority-class
-recall (0.893 over PortScan, Bot, Brute Force, Web Attack, Rare), a 0.11% BENIGN false-positive rate (≈420 false alarms in
-373k benign flows, the same as XGBoost and 15× fewer than Logistic Regression), trains in 1.5 min and predicts at
-~1.1 µs/flow, 2.8× faster than XGBoost. XGBoost is a very close second; Decision Tree is the choice when speed and
-interpretability dominate. The saved pipeline (feature selection + imputation + model) is about 5.5 MB.
+**Final model: Random Forest.** We pick Random Forest for its top test macro F1, macro F1 without Rare (0.950), and
+minority recall (0.893 across PortScan, Bot, Brute Force, Web Attack and Rare). Its 0.11% BENIGN false-positive rate
+produces ≈420 false alarms across 373k benign records, matching XGBoost and cutting Logistic Regression's false alarms
+by 15×. Training takes 1.5 min and prediction runs at ~1.1 µs per flow, which is 2.8× faster than XGBoost. XGBoost is a
+tight runner-up, while Decision Tree suits tasks needing speed and simple rules. On disk, the saved selection,
+imputation and model pipeline occupies roughly 5.5 MB.
 
 ## 7. Attack patterns - what distinguishes each attack
 
 <img src="figures/13_shap_by_family.png" style="width:78%">
-<p class="fig">Figure 13 - SHAP (TreeExplainer, 1,759 stratified test flows): share of each family's mean |SHAP| towards its own class.</p>
+<p class="fig">Figure 13 - SHAP results from TreeExplainer on 1,759 stratified test flows, expressed as each feature's share of a family's mean |SHAP| toward its own class.</p>
 
-Payload size (`Total Length of Fwd Packets`, `Fwd Packet Length Max`, `Packet Length Mean`), TCP-handshake parameters
-(`min_seg_size_forward`, `Init_Win_bytes_*`) and forward timing variability (`Fwd IAT Std`) dominate both the native
-importances and SHAP. **DoS:** large forward packets (median 343 B max vs 44 B benign) and very long flows (slow-rate
-attacks hold connections open). **DDoS:** tiny, uniform forward packets (26 B per flow). **PortScan:** no payload,
-1-2 packets, microsecond durations and regular timing. **Web Attack:** almost no forward payload but irregular forward
-timing (high `Fwd IAT Std`, median 3.8 s vs 0). **Brute Force:** a fixed `min_seg_size_forward` / TCP window - the attack
-tool's TCP stack. **Bot:** moderate payloads and the C&C server's TCP window. **Rare:** ~12 kB over ~100 s (Heartbleed
-exfiltration; benign median flow lasts 59 ms).
+Both tree importances and SHAP highlight forward timing spread (`Fwd IAT Std`), TCP handshake settings
+(`min_seg_size_forward`, `Init_Win_bytes_*`) and payload size (`Total Length of Fwd Packets`, `Fwd Packet Length Max`,
+`Packet Length Mean`). **DoS:** Connections carry oversized forward packets (median max 343 B vs 44 B benign) and run
+long as slow-rate attacks hold sockets open. **DDoS:** Flows send tiny, uniform forward packets totalling 26 B per
+flow. **PortScan:** Probes last microseconds, exchange 1-2 packets at steady intervals, and carry no payload. **Web
+Attack:** Forward payload is nearly absent, yet forward packet spacing is irregular (`Fwd IAT Std` median 3.8 s vs 0).
+**Brute Force:** A constant `min_seg_size_forward` and TCP window expose the attack tool's TCP stack. **Bot:** Flows pair
+medium payloads with the C&C server's TCP window. **Rare:** Heartbleed transfers ~12 kB over ~100 s during exfiltration,
+while benign median duration is 59 ms.
 
 ## 8. Dashboard, traffic replay and explanations (steps 11-14)
 
-The Streamlit app loads the saved pipeline and (i) predicts every flow and shows attack frequencies and binary metrics;
-(ii) **replays** flows in timestamp order with an adjustable speed (1×-3600× capture time) and batch size, updating live
-KPIs, a detection timeline and an alert feed; (iii) offers interactive Plotly views of per-attack feature distributions,
-the detection timeline, the confusion matrix and the model comparison; and (iv) **explains a selected detection**:
-predicted class, confidence, class probabilities, SHAP top features and a plain-language reason such as *"Flagged as Rare
-with 100% confidence. Main evidence: Total Length of Fwd Packets = 13,712 is much higher than typical benign traffic (74);
-Flow Duration = 119 s is much higher than typical benign traffic (58.6 ms)"*. The app was verified headlessly with
-`streamlit.testing.v1.AppTest` (full replay of the 29,999-flow test-split sample) and `streamlit run --server.headless`.
+We built a Streamlit app around the saved pipeline for batch analysis and live playback. It scores all flows to report
+class counts and binary metrics, then **replays** traffic chronologically at 1×-3600× capture speed with configurable
+batch sizes while updating KPIs, an alert stream and a detection timeline. Interactive Plotly charts show feature
+distributions by attack family, the model benchmark, the confusion matrix and the alert timeline. Selecting an alert
+**explains** the prediction with its class, confidence, probabilities, top SHAP contributors and plain-text evidence
+such as *"Flagged as Rare with 100% confidence. Main evidence: Total Length of Fwd Packets = 13,712 is much higher than
+typical benign traffic (74); Flow Duration = 119 s is much higher than typical benign traffic (58.6 ms)"*. We verified
+the app headlessly by replaying the 29,999-flow sample from the test split in `streamlit.testing.v1.AppTest` and
+starting `streamlit run --server.headless`.
 
 ## 9. Limitations and future scope
 
-- **Optimistic evaluation.** The random split places flows of the same attack burst in train and test; GroupKFold by day is
-  impossible, so results measure recognition of known attacks in the same network, not transfer to new networks or tools.
-- **Label quality.** CIC-IDS2017 has documented labelling and flow-construction errors [2]. 158 of the 202 BENIGN→Bot
-  "false alarms" go to 205.174.165.73:8080 - the Ares C&C server used by every labelled Bot flow - and are probably
-  unlabelled bot traffic; zero-payload Web Attack/PortScan flows are partly TCP-teardown artefacts.
-- **Tiny classes and fingerprints.** Rare has 47 flows (9 in test) - its F1 is very uncertain and Infiltration recall is
-  low (3/7). TCP-stack features identify the specific attack tools and may not generalise.
-- **Offline features.** CICFlowMeter features exist only when a flow ends and timestamps have minute resolution, so the
-  replay is near-real-time.
-- **Future work:** per-class probability thresholds / cost-sensitive calibration to remove the remaining Bot/DoS false
-  alarms; evaluation on corrected labels [2] and cross-dataset tests (CSE-CIC-IDS2018); time-aware validation within attack
-  days; streaming flow features; and an anomaly-detection layer for zero-day attacks.
+- **Optimistic evaluation.** Stratified random splitting puts flows from the same attack burst into both train and test,
+  and single-day schedules rule out day-level GroupKFold, meaning our metrics reflect detection of seen attacks on the
+  same testbed rather than generalisation to new tools or networks.
+- **Label quality.** Audits document labelling and flow-building defects in CIC-IDS2017 [2]. Among the 202 BENIGN→Bot
+  "false alarms", 158 contact 205.174.165.73:8080, the same Ares C&C endpoint seen across all labelled Bot flows,
+  suggesting unlabelled bot activity; zero-payload PortScan and Web Attack rows partly stem from TCP teardown artefacts.
+- **Tiny classes and fingerprints.** Only 47 Rare flows exist (with 9 in test), leaving its F1 uncertain and
+  Infiltration recall low (3/7). TCP-stack features also fingerprint capture tools, so they might not transfer cleanly.
+- **Offline features.** CICFlowMeter emits features only after flows close, while timestamps resolve only to the minute,
+  keeping replay near-real-time.
+- **Future work:** We would test per-class probability thresholds or cost-sensitive calibration to trim leftover Bot
+  and DoS false alarms, re-evaluate on corrected labels [2] and CSE-CIC-IDS2018, run time-ordered splits inside attack
+  days, explore streaming features, and add anomaly detection for zero-day threats.
 
-**Conclusion.** After removing duplicates and identifiers, a class-weighted Random Forest on 37 flow features classifies eight
-attack families with test macro F1 0.921 (0.950 without Rare), detects 99.9% of malicious flows at a 0.11% false-alarm rate
-and predicts in about a microsecond per flow; SHAP and the replay dashboard make every alert explainable.
+**Conclusion.** After dropping duplicates and identifiers, our class-weighted Random Forest uses 37 flow features to
+separate eight families at 0.921 test macro F1 (0.950 without Rare). It catches 99.9% of malicious traffic with only
+0.11% false alarms in roughly a microsecond per flow, while our replay app and SHAP attributions clarify why each alert
+fired.
 
 **References.** [1] I. Sharafaldin, A. H. Lashkari, A. A. Ghorbani, "Toward Generating a New Intrusion Detection Dataset and
 Intrusion Traffic Characterization", ICISSP 2018, pp. 108-116. [2] G. Engelen, V. Rimmer, W. Joosen, "Troubleshooting an
