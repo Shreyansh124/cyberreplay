@@ -58,7 +58,7 @@ def build() -> nbf.NotebookNode:
 **Shreyansh Krishna** (2026CS05055) · **Aamir Lanker** (2026CS05054) · **Harshith G. D** (2026CS05053) · Course: Machine Learning
 
 Multi-class classification of CIC-IDS2017 network flows into 8 attack families (Track A: scikit-learn / XGBoost),
-plus a derived binary `is_malicious` output, a traffic-replay dashboard and SHAP explanations.
+with a derived binary `is_malicious` output, a traffic-replay dashboard and SHAP explanations.
 
 | Build step | Section |
 |---|---|
@@ -72,20 +72,20 @@ plus a derived binary `is_malicious` output, a traffic-replay dashboard and SHAP
 | 11-14 Dashboard, replay, interactive visuals, explanations | §11 |
 | 15-16 Reproducibility, conclusions | §12-13 |
 
-All code lives in the `src/cyberreplay` package; this notebook calls it step by step and shows every result.
-Random seed **42** everywhere.
+We keep the implementation in `src/cyberreplay` and use this notebook to run each stage and present its results.
+Every stage uses random seed **42**.
 """)
 
     md("""
 ## 0. Setup (Google Colab or local)
 
-This notebook runs both on **Google Colab** (the project's virtual lab) and locally.
+We designed this notebook to run in **Google Colab**, our virtual lab, or on a local machine.
 
-In Colab the first cell clones the public repository
+On Colab, the first cell clones our public repository
 `https://github.com/Shreyansh124/cyberreplay.git` (branch set by `BRANCH`) into `/content/cyberreplay` and installs
-the pinned `requirements.txt`; no setup or credentials are needed. Locally it simply locates the repository root.
+the pinned `requirements.txt`, without requiring credentials or manual setup. For local use, it finds the repository root.
 
-If `pip` upgrades NumPy/pandas, the cell restarts the runtime automatically - simply run all cells again.
+When `pip` upgrades NumPy/pandas, the cell restarts the runtime automatically; we then run all cells once more.
 """)
     code("""
 # Environment setup: clone the repo + install pinned requirements in Colab; locate the repo locally.
@@ -117,14 +117,14 @@ sys.path.insert(0, str(ROOT / "src"))
 print("Project root:", ROOT, "| Colab:", IN_COLAB)
 """)
     md("""
-**Data location.** Set `DATA_SOURCE = "drive"` to use a copy of CIC-IDS2017 already in Google Drive
-(point `DRIVE_DATA_DIR` at the folder holding the day CSVs - either the *TrafficLabelling/GeneratedLabelledFlows*
-or the *MachineLearningCSV* variant; sub-folders are searched), or `"download"` to fetch the official
-`GeneratedLabelledFlows.zip` (~285 MB) automatically. If the Drive folder has no CSVs the notebook falls back to the download.
+**Data location.** We set `DATA_SOURCE = "drive"` when CIC-IDS2017 is already in Google Drive. `DRIVE_DATA_DIR`
+must point to the folder containing the day CSVs, either the *TrafficLabelling/GeneratedLabelledFlows* or
+*MachineLearningCSV* version; the notebook also searches sub-folders. Setting it to `"download"` retrieves the official
+`GeneratedLabelledFlows.zip` (~285 MB) automatically. If no CSVs are present in Drive, we fall back to that download.
 
-`FORCE_RECOMPUTE = False` reuses the committed CV / tuning results (`reports/results`) and any cached fitted models;
-set it to `True` to recompute everything (tuning takes about an hour on 8 CPUs).
-`FINAL_FIT_ROWS` can limit the final fit to a stratified subset for a faster Colab run (reported results use `None` = full training split).
+With `FORCE_RECOMPUTE = False`, we reuse committed CV / tuning results in `reports/results` and any cached fitted models.
+Changing it to `True` recomputes every stage; tuning takes about an hour on 8 CPUs. For a quicker Colab run,
+`FINAL_FIT_ROWS` can restrict the final fit to a stratified subset, while the reported results use `None` = full training split.
 """)
     code("""
 DATA_SOURCE = "drive"                               # "drive" or "download"
@@ -165,21 +165,21 @@ print("Data dir:", config.DATA_DIR, "| seed:", config.SEED, "| n_jobs:", config.
     md("""
 ## 1. Problem and dataset
 
-**Problem.** Signature-based intrusion detection misses new variants and floods analysts with alerts. A flow-level
-ML classifier can recognise *which kind* of attack a connection belongs to - DoS, DDoS, port scan, botnet, brute
-force, web attack or rare intrusions - so that alerts can be triaged by family, while a binary
-`is_malicious` flag (prediction ≠ BENIGN) supports simple allow/deny decisions. The task is a heavily imbalanced
-multi-class problem, so the primary metric is **macro F1** (every family counts equally).
+**Problem.** Signature-based intrusion detectors can miss new variants and generate too many alerts for analysts.
+We train a flow-level ML classifier to identify *which kind* of attack a connection represents: DoS, DDoS, port scan,
+botnet, brute force, web attack or a rare intrusion. This lets us organise alerts by family, while the binary
+`is_malicious` flag (prediction ≠ BENIGN) supports a simpler allow/deny decision. Because this multi-class task is
+heavily imbalanced, our primary metric is **macro F1**, which gives each family equal weight.
 
-**Dataset.** CIC-IDS2017 (Canadian Institute for Cybersecurity, University of New Brunswick): five days
-(3-7 July 2017) of realistic traffic from a 25-host testbed with scripted attacks, converted into
-bidirectional flows by CICFlowMeter (80+ statistical features per flow, labelled with 15 classes).
-It is a widely used, non-trivial IDS benchmark: 2.8 M flows, real protocols and a strong class imbalance.
+**Dataset.** CIC-IDS2017 from the Canadian Institute for Cybersecurity, University of New Brunswick contains five days
+(3-7 July 2017) of realistic network traffic from a 25-host testbed with scripted attacks. CICFlowMeter converts the
+traffic into bidirectional flows with 80+ statistical features per flow and 15 labels. Its 2.8 M flows, real protocols
+and strong imbalance make it a widely used, non-trivial IDS benchmark.
 
-*Source:* official page <https://www.unb.ca/cic/datasets/ids-2017.html>; the automated download uses a byte-identical
-mirror of the official `GeneratedLabelledFlows.zip` (TrafficLabelling CSVs, which include timestamps) at
-<https://huggingface.co/datasets/bencorn/CICIDS2017> (SHA-256 checked), because the official download now sits behind a
-registration form.
+*Source:* official page <https://www.unb.ca/cic/datasets/ids-2017.html>. Since the official download now requires a
+registration form, our automated download uses a byte-identical mirror of the official `GeneratedLabelledFlows.zip`
+(TrafficLabelling CSVs, which include timestamps) at <https://huggingface.co/datasets/bencorn/CICIDS2017>, with
+SHA-256 verification.
 *Citation:* I. Sharafaldin, A. H. Lashkari, A. A. Ghorbani, "Toward Generating a New Intrusion Detection Dataset and
 Intrusion Traffic Characterization", ICISSP 2018, pp. 108-116.
 
@@ -209,8 +209,8 @@ raw.iloc[:3, :12]  # first columns only; the full frame has 87
     md("""
 ## 2. Exploratory data analysis
 
-Labels are normalised first (the Thursday file encodes the en dash in "Web Attack – XSS" as the cp1252 byte `0x96`)
-and mapped to the 8 families; the raw label is kept for analysis.
+We first normalise labels because the Thursday file stores the en dash in "Web Attack – XSS" as the cp1252 byte
+`0x96`. We then map labels into the 8 families while retaining the raw label for analysis.
 """)
     code("""
 labelled = clean.add_labels(raw)
@@ -233,14 +233,14 @@ fig = eda.plot_attack_day_matrix(labelled); plt.show()
     md("""
 ## 3. Data cleaning
 
-Row-level cleaning is deterministic (no statistics are fitted), so it is safe before the split:
-1. `+/-inf` → NaN (rates are infinite when `Flow Duration` = 0); NaN are **median-imputed later inside the pipeline**
-   (median fitted on the training split only).
-2. Physically impossible negative durations / IATs / header lengths → clipped to 0; the `-1` of `Init_Win_bytes_*`
-   is a CICFlowMeter sentinel ("no TCP window seen") and is kept.
-3. Exact duplicate flows (same features and family, identifiers ignored) are dropped **before** splitting so no vector
-   can appear in both train and test.
-4. Outliers are *quantified* here but not deleted (see §3.2 and §4.3 for how they are handled).
+Our row-level cleaning uses no fitted statistics, so we can safely perform it before splitting:
+1. We replace `+/-inf` with NaN because rates become infinite when `Flow Duration` = 0. The pipeline
+   **median-imputes NaN later**, using a median fitted only on the training split.
+2. We clip physically impossible negative durations, IATs and header lengths to 0, but retain the `-1` value in
+   `Init_Win_bytes_*` because CICFlowMeter uses it as a sentinel for "no TCP window seen".
+3. We remove exact duplicate flows with the same features and family, ignoring identifiers, **before** splitting.
+   This prevents one vector from appearing in both train and test.
+4. We measure outliers here without deleting them; §3.2 and §4.3 describe their treatment.
 """)
     code("""
 clean_df, report = clean.clean_cached(raw)
@@ -271,15 +271,16 @@ display(corr_pairs.head(10))
     md("""
 ## 4. Feature engineering and leakage control
 
-* **Target encoding:** families → integer codes 0-7 (`BENIGN` = 0); binary `is_malicious` derived from predictions.
-* **Split:** stratified 80/20 train/test split of the de-duplicated data (seed 42). The test split is not touched
-  until §8.
-* **Identifiers excluded:** Flow ID, Source/Destination IP, Source/Destination Port, Timestamp.
-* **Feature selection (train only):** variance filter → greedy correlation filter (|r| > 0.95) → class-weighted
-  Random Forest importance (keep 99% cumulative importance).
-* **Preprocessing inside sklearn Pipelines:** column selection + median imputation for all models; for Logistic
-  Regression additionally 99.9th-percentile capping, signed `log1p` and `StandardScaler` - all fitted on training
-  folds only.
+* **Target encoding:** We encode families as integer codes 0-7 (`BENIGN` = 0) and derive binary `is_malicious`
+  from the predictions.
+* **Split:** We make a stratified 80/20 train/test split of de-duplicated data using seed 42, then leave the test
+  split untouched until §8.
+* **Identifiers excluded:** We remove Flow ID, Source/Destination IP, Source/Destination Port and Timestamp.
+* **Feature selection (train only):** We apply a variance filter, then a greedy correlation filter (|r| > 0.95),
+  followed by class-weighted Random Forest importance that retains 99% cumulative importance.
+* **Preprocessing inside sklearn Pipelines:** Every model performs column selection and median imputation. Logistic
+  Regression also applies 99.9th-percentile capping, signed `log1p` and `StandardScaler`. We fit each operation only
+  on training folds.
 """)
     code("""
 train, test = features.split_train_test(clean_df)
@@ -313,20 +314,20 @@ print(models.build_pipeline("XGBoost", FEATURES))
     md("""
 ## 5. Models
 
-Four Track A models, each wrapped with the preprocessing above:
+We compare four Track A models, each paired with the preprocessing described above:
 
 | Model | Why it is included | Imbalance handling |
 |---|---|---|
-| Logistic Regression (multinomial, lbfgs) | linear, interpretable baseline | class-balancing sample weights |
-| Decision Tree (CART) | non-linear, rule-like, very fast | class-balancing sample weights |
-| Random Forest | bagged trees, robust to noise | class-balancing sample weights |
-| XGBoost (hist) | gradient boosting, state of the art on tabular data | class-balancing sample weights |
+| Logistic Regression (multinomial, lbfgs) | interpretable linear reference | class-balancing sample weights |
+| Decision Tree (CART) | fast non-linear decision rules | class-balancing sample weights |
+| Random Forest | averaged trees that resist noise | class-balancing sample weights |
+| XGBoost (hist) | boosted trees suited to tabular data | class-balancing sample weights |
 
-The weights are computed inside each estimator's `fit` from the rows it trains on, so every CV fold is leak-free.
-Their strength is a hyperparameter: `balanced` (n / (k·count)) or its square root `sqrt`.
+Each estimator calculates weights inside `fit` from its own training rows, keeping every CV fold free of leakage.
+We tune weight strength between `balanced` (n / (k·count)) and its square root `sqrt`.
 
-**Tuning sample.** CV and tuning use a 500k-row stratified sample of the *training* split that keeps **all** rows of
-every family with fewer than 50k training rows and samples BENIGN / DoS / DDoS proportionally.
+**Tuning sample.** For CV and tuning, we take a stratified 500k-row sample from the *training* split. It includes
+**all** rows from each family with fewer than 50k training rows and proportionally samples BENIGN / DoS / DDoS.
 """)
     code("""
 tune_df = features.stratified_sample(train, config.TUNING_SAMPLE_SIZE)
@@ -336,12 +337,13 @@ display(pd.DataFrame({"tuning sample": tune_df[config.TARGET_COL].value_counts()
     md("""
 ## 6. Cross-validation (StratifiedKFold, training data only)
 
-5-fold `StratifiedKFold(shuffle=True, random_state=42)` with default hyperparameters on the tuning sample.
+We first evaluate default hyperparameters on the tuning sample with
+5-fold `StratifiedKFold(shuffle=True, random_state=42)`.
 
-*Why not GroupKFold by capture day?* Figure 3 shows that every attack type was recorded on exactly one day. Holding
-out a day would remove that attack completely from the training folds (e.g. all DDoS is on Friday afternoon),
-so the model could never learn it and the score would measure "unseen attack type" detection instead of
-classification. Stratified folds keep every family in every fold.
+*Why not GroupKFold by capture day?* Figure 3 shows that each attack type was recorded on exactly one day. If we held
+out a day, its attack would disappear from the training folds; for example, all DDoS occurs on Friday afternoon.
+The model could not learn that class, and the score would test "unseen attack type" detection rather than
+classification. Stratification keeps every family represented in every fold.
 """)
     code("""
 cv_folds = pipeline.stage_cv(tune_df, FEATURES, force=FORCE_RECOMPUTE)
@@ -354,7 +356,7 @@ fig = evaluate.plot_cv_folds(cv_folds); plt.show()
     md("""
 ## 7. Hyperparameter tuning (RandomizedSearchCV, scoring = f1_macro)
 
-3-fold stratified RandomizedSearchCV on the tuning sample. Search spaces:
+We run 3-fold stratified RandomizedSearchCV on the tuning sample with these search spaces:
 """)
     code("""
 for name in config.MODEL_NAMES:
@@ -375,8 +377,9 @@ display(tuned["XGBoost"]["cv_results"].head(5))
     md("""
 ## 8. Final training on the full training split and test evaluation
 
-Each tuned pipeline is refitted on the **full** training split (1.76 M flows) and evaluated once on the untouched
-test split (440k flows). Training time is the wall-clock fit time; inference time is `predict` on the whole test split.
+We refit every tuned pipeline on the **full** training split of 1.76 M flows, then evaluate it once on the untouched
+test split of 440k flows. We record training time as wall-clock fit time and inference time as `predict` over the
+complete test split.
 """)
     code("""
 fit_train = train if FINAL_FIT_ROWS is None else features.stratified_sample(train, FINAL_FIT_ROWS)
@@ -417,8 +420,8 @@ print(f"Saved {config.BEST_MODEL_PATH} ({config.BEST_MODEL_PATH.stat().st_size /
     md("""
 ## 10. Attack patterns: what distinguishes each attack?
 
-Three complementary views: model-native importance (global), SHAP values of the best model on a stratified test
-subsample (per family, direction of effect), and the raw feature distributions per family.
+We study attack differences from three viewpoints: global model-native importance, per-family SHAP values and effect
+directions from the best model on a stratified test subsample, and raw feature distributions for each family.
 """)
     code("""
 exp = pipeline.stage_explain(best, fitted, train, test, FEATURES)
@@ -441,18 +444,20 @@ display(exp["signatures"])
     md("""
 ## 11. Dashboard, traffic replay and per-detection explanations (steps 11-14)
 
-`app/streamlit_app.py` loads `models/best_model.joblib` (preprocessing + model in one pipeline) and offers:
-* **Overview** - predictions for every loaded flow, attack frequencies (predicted vs true), binary metrics, latest detections;
-* **Live replay** - flows streamed in capture-time order with an adjustable speed (1x-3600x capture time) and batch size,
-  live alert KPIs, a live detection timeline and an alert feed;
-* **Attack patterns** - interactive Plotly box/scatter plots per family, detection timeline, confusion matrix,
-  model comparison and per-class F1;
-* **Explain a detection** - choose a detected attack → predicted class, confidence, class probabilities, SHAP top
-  contributing features and a plain-language reason.
+`app/streamlit_app.py` loads `models/best_model.joblib`, which combines preprocessing and the model in one pipeline.
+The application provides:
+* **Overview** - We show predictions for all loaded flows, predicted and true attack frequencies, binary metrics and
+  the latest detections.
+* **Live replay** - We stream flows in capture-time order with adjustable speed (1x-3600x capture time) and batch size,
+  alongside live alert KPIs, a detection timeline and an alert feed.
+* **Attack patterns** - We provide interactive Plotly box/scatter plots by family, a detection timeline, confusion
+  matrix, model comparison and per-class F1.
+* **Explain a detection** - A selected attack displays its predicted class, confidence, class probabilities, leading
+  SHAP features and a plain-language reason.
 
-Run it with `streamlit run app/streamlit_app.py` (locally) - it uses the committed sample
-`data/sample/cicids2017_sample.csv.gz` (29,999 flows drawn from the **test** split) or an uploaded CSV.
-The cells below run the same replay and explanation code headless.
+For local use, we run `streamlit run app/streamlit_app.py`. It accepts the committed
+`data/sample/cicids2017_sample.csv.gz`, containing 29,999 flows drawn from the **test** split, or an uploaded CSV.
+The following cells run the same replay and explanation logic without the interface.
 """)
     code("""
 sample = pd.read_csv(config.SAMPLE_PATH)
@@ -489,13 +494,13 @@ for fam in ["DoS", "DDoS", "PortScan", "Bot", "Brute Force", "Web Attack", "Rare
     md("""
 ## 12. Reproducibility
 
-* Everything above is also available as one command: `python -m cyberreplay.pipeline --download`
-  (`--force` recomputes tuning and fits, `--quick` is a smoke test).
-* Pinned dependencies in `requirements.txt`; seed 42 for every split, sample, model and search.
-* The final pipeline (feature selection + imputation + model) is saved as `models/best_model.joblib`
-  with metadata (`best_model_metadata.json`: features, parameters, test metrics, library versions).
-* Unit tests and a headless dashboard test: `pytest tests`.
-* All figures are in `reports/figures`, all tables in `reports/results`.
+* We can reproduce the full workflow with `python -m cyberreplay.pipeline --download`; `--force` recomputes tuning
+  and fitting, while `--quick` runs a smoke test.
+* `requirements.txt` pins dependencies, and every split, sample, model and search uses seed 42.
+* We save the final feature selection + imputation + model pipeline as `models/best_model.joblib`, together with
+  `best_model_metadata.json` containing features, parameters, test metrics and library versions.
+* We run unit tests and a headless dashboard test with `pytest tests`.
+* We store all figures in `reports/figures` and all tables in `reports/results`.
 """)
     code("""
 import platform, sklearn, xgboost, shap
