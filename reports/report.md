@@ -1,7 +1,7 @@
 # CyberReplay: Machine Learning-Based Network Intrusion Detection and Attack Analysis
 
 <div class="title-block">
-<b>Shreyansh Krishna</b> (2026CS05055) &nbsp;·&nbsp; <b>Aamir Lanker</b> (2026CS05054) &nbsp;·&nbsp; <b>Harshith G. D</b> (2026CS05053)<br>
+<span style="white-space:nowrap"><b>Shreyansh Krishna</b> (2026CS05055)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Aamir Lanker</b> (2026CS05054)</span> &nbsp;·&nbsp; <span style="white-space:nowrap"><b>Harshith G. D</b> (2026CS05053)</span><br>
 Course: Machine Learning<br>
 Track A (library-based ML) · Code, notebook and dashboard: <code>github.com/Shreyansh124/cyberreplay</code>
 </div>
@@ -21,9 +21,9 @@ We use **CIC-IDS2017** [1], captured by the Canadian Institute for Cybersecurity
 on a 25-host lab network running scripted attacks. CICFlowMeter converts traffic into 2,830,743 bidirectional flows
 with 80+ summary variables across 15 labels. This benchmark combines real protocols, heavy skew and timestamps suited
 to ordered replay. We load the *GeneratedLabelledFlows / TrafficLabelling* CSVs, which retain Flow ID, IPs, ports and
-Timestamp. The dataset lives at <https://www.unb.ca/cic/datasets/ids-2017.html>, and because UNB gates downloads behind
-registration, our script fetches a byte-for-byte identical archive (`csvs/GeneratedLabelledFlows.zip`, SHA-256 verified)
-from Hugging Face (<https://huggingface.co/datasets/bencorn/CICIDS2017>). The repo ships a stratified 29,999-flow
+Timestamp. UNB publishes the dataset at <https://www.unb.ca/cic/datasets/ids-2017.html> but gates downloads behind a
+registration form, so our script fetches the byte-for-byte identical archive from a Hugging Face mirror and verifies its
+SHA-256 hash; the file is `csvs/GeneratedLabelledFlows.zip` at <https://huggingface.co/datasets/bencorn/CICIDS2017>. The repo ships a stratified 29,999-flow
 subset under `data/sample/`. We merge Hulk, GoldenEye, slowloris and Slowhttptest as **DoS**; FTP-/SSH-Patator as
 **Brute Force**; Brute Force, XSS and SQL Injection as **Web Attack**; and Infiltration (36 flows) plus Heartbleed (11)
 as **Rare**, while leaving DDoS, PortScan and Bot intact.
