@@ -61,3 +61,15 @@ Resume from the first unticked sub-phase. Each completed phase is committed as
 - [x] 16.4 Report extensions: Appendix A (explained code), reproducibility paragraph, dataset-sample table,
   recall per raw label (`evaluate.per_raw_label_recall`, test split reproduced exactly), Figures 5/6/7/10/12,
   references [6]-[13]; main report still 5 pages
+
+## Phase 17 - Report revision (reference layout, ROC, over/underfitting)
+- [x] 17.0 Data re-downloaded (`--download`), cleaning + seed-42 split reproduced, four models refitted from
+  `best_params_*.json`; stored test metrics reproduced exactly (difference 0), saved best model predicts identically
+- [x] 17.1 `diagnostics.py`: split table/figure, Dummy baseline, reproduction check, balanced accuracy, OvR ROC-AUC
+  and curves, fit diagnosis (validation slice from the training split), learning and validation curves; unit tests
+- [x] 17.2 Print-size figure style (`plotstyle.py`) for every figure; single-panel Figure 7; `--diagnostics` and
+  `--figures` CLI stages
+- [x] 17.3 Results and figures regenerated (Figures 17-21 new); timing columns kept from the reported run
+- [x] 17.4 Notebook sections 4.1, 9.1, 9.2 added; notebook re-executed end to end; notebook PDF rebuilt
+- [x] 17.5 Report rewritten in the reference layout (sections 1-7 + References in 5 pages, Section 8 code, figure
+  appendix); `scripts/check_report.py` passes
