@@ -8,7 +8,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from cyberreplay import clean, config, data, features, replay  # noqa: E402
+from cyberreplay import clean, config, data, evaluate, features, replay  # noqa: E402
 
 
 def test_normalise_label_handles_cp1252_dash():
@@ -61,3 +61,19 @@ def test_replay_order_is_chronological():
                        config.DAY_ORDER_COL: [2, 1, 1], config.ROW_ORDER_COL: [0, 7, 3]})
     out = replay.order_stream(df)
     assert out[config.ROW_ORDER_COL].tolist() == [3, 7, 0]
+
+
+def test_per_raw_label_recall_counts_family_hits(tmp_path, monkeypatch):
+    """A raw-label flow is detected when its predicted family matches its label's family."""
+
+    class FixedPredictions:
+        def predict(self, X):
+            return np.array([1, 1, 0, 0, 7])  # DoS, DoS, BENIGN, BENIGN, Rare
+
+    monkeypatch.setattr(evaluate, "save_table", lambda *a, **k: None)
+    test = clean.add_labels(pd.DataFrame({"x": range(5), "Label": ["DoS Hulk", "DoS slowloris", "DoS slowloris",
+                                                                   "BENIGN", "Heartbleed"]}))
+    out = evaluate.per_raw_label_recall(FixedPredictions(), test, ["x"])
+    assert out.loc["DoS slowloris", ["support", "detected"]].tolist() == [2, 1]
+    assert out.loc["DoS slowloris", "main_error"] == "BENIGN (1)"
+    assert out["recall"].drop("DoS slowloris").eq(1.0).all()

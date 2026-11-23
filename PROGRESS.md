@@ -58,3 +58,6 @@ Resume from the first unticked sub-phase. Each completed phase is committed as
 - [x] 16.1 `report.md` -> `report.pdf` (4 pages)
 - [x] 16.2 `notebook.pdf` (39 pages)
 - [x] 16.3 Pull request
+- [x] 16.4 Report extensions: Appendix A (explained code), reproducibility paragraph, dataset-sample table,
+  recall per raw label (`evaluate.per_raw_label_recall`, test split reproduced exactly), Figures 5/6/7/10/12,
+  references [6]-[13]; main report still 5 pages

@@ -10,7 +10,9 @@ Usage::
     python scripts/build_pdfs.py            # both
     python scripts/build_pdfs.py report     # only the report
 
-Prints the page count of each PDF (the report must be 3-5 pages).
+Prints the page count of each PDF. The main report (sections 1-9, Conclusion,
+References) must fit in 3-5 pages; the code appendix starts on a new page after
+the References and is not counted.
 """
 
 from __future__ import annotations
@@ -46,6 +48,13 @@ img { display: block; margin: 3pt auto; max-width: 100%; }
 .title-block { text-align: center; font-size: 9.5pt; margin-bottom: 6pt; }
 .cols { display: flex; gap: 6pt; } .cols img { width: 49%; }
 code { font-size: 8.5pt; }
+table { break-inside: avoid; }
+.tight table { font-size: 7.8pt; } .tight th, .tight td { padding: 1pt 3pt; } .tight td { white-space: nowrap; }
+h3 { break-after: avoid; }
+pre { font-family: "DejaVu Sans Mono", monospace; font-size: 7.2pt; line-height: 1.22; background: #f6f6f6;
+      border: 1px solid #ddd; padding: 3pt 4pt; margin: 2pt 0 3pt 0; white-space: pre-wrap; overflow-wrap: anywhere;
+      break-inside: avoid; }
+pre code { font-size: inherit; }
 """
 
 

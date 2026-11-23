@@ -30,7 +30,7 @@ resamples), best minority-class recall (0.893), 0.11% BENIGN false alarms and ~1
 | `src/cyberreplay/` | Python package: `config`, `data`, `clean`, `eda`, `features`, `models`, `tuning`, `evaluate`, `explain`, `replay`, `utils`, `pipeline` (CLI) |
 | `notebooks/CyberReplay.ipynb` | Main deliverable - executed end to end, Colab-ready (outputs saved) |
 | `app/streamlit_app.py` | Dashboard: overview, live replay, interactive attack patterns, SHAP explanation per detection |
-| `reports/report.md`, `reports/report.pdf` | Final report (Markdown source and 4-page PDF) |
+| `reports/report.md`, `reports/report.pdf` | Final report (Markdown source and PDF: 5-page main report, then Appendix A with explained code excerpts) |
 | `reports/notebook.pdf` | Executed notebook exported to PDF |
 | `reports/figures/` | All plots (PNG) |
 | `reports/results/` | All metric tables (CSV + Markdown), tuning results, best parameters |

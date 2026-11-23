@@ -6,6 +6,8 @@
   macro precision/recall/F1, per-class report, confusion matrix, binary
   ``is_malicious`` metrics (derived as prediction != BENIGN), false-positive
   rate on BENIGN, minority-class recall and inference speed.
+* ``per_raw_label_recall`` breaks test recall down by the 15 original labels
+  (error analysis by attack sub-type).
 * plotting helpers produce the comparison figures and ``choose_best`` applies
   the documented selection rule.
 """
@@ -202,6 +204,44 @@ def bootstrap_f1(results: dict[str, dict], test: pd.DataFrame, n_boot: int = 300
         "share_best_higher": (scores[:, [best]] > scores).mean(axis=0),
     }, index=pd.Index(names, name="model"))
     save_table(out, "test_bootstrap_ci")
+    return out
+
+
+def per_raw_label_recall(pipe: Pipeline, test: pd.DataFrame, features: list[str]) -> pd.DataFrame:
+    """Test recall of a fitted pipeline for each of the 15 original CIC-IDS2017 labels.
+
+    The model predicts families, so a flow counts as detected when the predicted
+    family equals the family its raw label maps to (e.g. a ``DoS slowloris`` flow
+    predicted as ``DoS``). Splitting family recall this way shows which attack
+    tools inside a family the model misses.
+
+    Args:
+        pipe: Fitted pipeline (normally the saved best model).
+        test: Test split with the normalised raw ``Label`` and ``family`` columns.
+        features: Selected features expected by the pipeline.
+
+    Returns:
+        Table indexed by raw label (ordered as ``config.LABEL_TO_FAMILY``) with
+        ``family``, ``support``, ``detected``, ``recall`` and ``main_error``, the
+        most frequent wrong prediction with its count ("" when none).
+
+    Side effects:
+        Writes ``reports/results/per_raw_label_recall.{csv,md}``.
+    """
+    predicted = pd.Series(np.asarray(config.CLASS_ORDER, dtype=object)[pipe.predict(test[features])],
+                          index=test.index)
+    rows = []
+    for label, family in config.LABEL_TO_FAMILY.items():
+        mask = test[config.RAW_LABEL_COL] == label
+        if not mask.any():
+            continue
+        wrong = predicted[mask & (predicted != family)].value_counts()
+        detected = int((predicted[mask] == family).sum())
+        rows.append({"raw_label": label, "family": family, "support": int(mask.sum()), "detected": detected,
+                     "recall": detected / int(mask.sum()),
+                     "main_error": f"{wrong.index[0]} ({wrong.iloc[0]})" if len(wrong) else ""})
+    out = pd.DataFrame(rows).set_index("raw_label")
+    save_table(out, "per_raw_label_recall")
     return out
 
 
