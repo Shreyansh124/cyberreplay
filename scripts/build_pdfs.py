@@ -50,7 +50,7 @@ img { display: block; margin: 3pt auto; max-width: 100%; }
 code { font-size: 8.5pt; }
 table { break-inside: avoid; }
 .tight table { font-size: 7.8pt; } .tight th, .tight td { padding: 1pt 3pt; } .tight td { white-space: nowrap; }
-h3 { break-after: avoid; }
+h2, h3 { break-after: avoid; }
 pre { font-family: "DejaVu Sans Mono", monospace; font-size: 7.2pt; line-height: 1.22; background: #f6f6f6;
       border: 1px solid #ddd; padding: 3pt 4pt; margin: 2pt 0 3pt 0; white-space: pre-wrap; overflow-wrap: anywhere;
       break-inside: avoid; }

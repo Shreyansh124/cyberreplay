@@ -15,9 +15,8 @@ predicts in about 1.1 µs per flow, 2.8× faster than XGBoost. As a malicious-ve
 
 ## 1. Problem and motivation
 
-Fixed-signature intrusion detectors miss altered forms of familiar threats and raise alerts with little context. By
-training machine-learning classifiers on flow statistics, we can both spot malicious traffic and identify its attack
-category for faster triage. CyberReplay sorts flows into **8 families** (BENIGN, DoS, DDoS, PortScan, Bot, Brute Force,
+Fixed-signature intrusion detectors miss altered forms of familiar threats and raise alerts with little context. Classifiers
+trained on flow statistics can both spot malicious traffic and name its attack category for faster triage. CyberReplay sorts flows into **8 families** (BENIGN, DoS, DDoS, PortScan, Bot, Brute Force,
 Web Attack, Rare) and sets a binary `is_malicious` flag whenever the predicted family ≠ BENIGN. We benchmark four Track
 A models, attach SHAP attributions to each alert, and replay recorded traffic in a Streamlit app. Heavy class imbalance
 makes **macro F1** our main metric.
@@ -29,12 +28,12 @@ on a 25-host lab network running scripted attacks. CICFlowMeter [6] converts tra
 with 80+ summary variables across 15 labels. This benchmark combines real protocols, heavy skew and timestamps suited
 to ordered replay. We load the *GeneratedLabelledFlows / TrafficLabelling* CSVs, which retain Flow ID, IPs, ports and
 Timestamp. UNB publishes the dataset at <https://www.unb.ca/cic/datasets/ids-2017.html> but gates downloads behind a
-registration form, so our script fetches the byte-for-byte identical archive from a Hugging Face mirror and verifies its
-SHA-256 hash; the file is `csvs/GeneratedLabelledFlows.zip` at <https://huggingface.co/datasets/bencorn/CICIDS2017>. Our project ships a stratified 29,999-flow
+registration form, so our script fetches the identical `csvs/GeneratedLabelledFlows.zip` from a Hugging Face mirror,
+<https://huggingface.co/datasets/bencorn/CICIDS2017>, and verifies its SHA-256 hash. Our project ships a stratified 29,999-flow
 subset under `data/sample/`. We merge Hulk, GoldenEye, slowloris and Slowhttptest as **DoS**; FTP-/SSH-Patator as
 **Brute Force**; Brute Force, XSS and SQL Injection as **Web Attack**; and Infiltration (36 flows) plus Heartbleed (11)
-as **Rare**, while leaving DDoS, PortScan and Bot intact. Five flows from the committed sample show the raw label next
-to the family and binary target we derive from it, together with three of the flow statistics:
+as **Rare**, while leaving DDoS, PortScan and Bot intact. Five sample flows show the raw label, the family and
+binary target we derive from it, and three flow statistics:
 
 <div class="tight" markdown="1">
 
@@ -48,9 +47,13 @@ to the family and binary target we derive from it, together with three of the fl
 
 </div>
 
+<div style="break-inside:avoid" markdown="1">
+
 ## 3. Exploratory data analysis - key findings
 
 <div class="cols"><img src="figures/01_class_distribution.png"><img src="figures/03_attack_day_matrix.png"></div>
+
+</div>
 <p class="fig">Figure 1 - flow counts by class on a logarithmic scale · Figure 3 - each attack type appears on only one capture day.</p>
 
 - **Imbalance:** Benign traffic makes up 80.3% of flows, while Rare holds 0.002% and Bot 0.069% (BENIGN:Rare ≈
