@@ -1,0 +1,9 @@
+family,BENIGN,DoS,DDoS,PortScan,Bot,Brute Force,Web Attack,Rare
+BENIGN,16207,10,0,2,11,0,1,0
+DoS,0,5410,0,0,0,0,0,0
+DDoS,0,0,5410,0,0,0,0,0
+PortScan,3,9,0,379,0,0,1,0
+Bot,12,0,0,0,276,0,0,0
+Brute Force,7,1,0,0,0,1822,0,0
+Web Attack,4,0,0,0,0,1,424,0
+Rare,4,0,0,0,0,0,0,5

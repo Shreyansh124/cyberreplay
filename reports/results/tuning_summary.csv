@@ -1,0 +1,5 @@
+model,cv5_default_f1_macro,cv3_tuned_f1_macro,tuned_fold_scores,best_params,gain
+LogisticRegression,0.5335738420680862,0.7899194876387253,"0.7904, 0.7834, 0.7960","C=10.13, class_weighting=sqrt, tol=0.0001",0.2563456455706391
+DecisionTree,0.944796094328955,0.9493675874764312,"0.9559, 0.9229, 0.9693","class_weighting=balanced, criterion=entropy, max_depth=None, max_features=0.8, min_samples_leaf=2, min_samples_split=9",0.004571493147476291
+RandomForest,0.9535635700620858,0.9629732295873134,"0.9608, 0.9536, 0.9745","n_estimators=150, min_samples_leaf=1, max_features=0.5, max_depth=20, criterion=entropy, class_weighting=balanced",0.009409659525227543
+XGBoost,0.9598746285705649,0.9659750246195866,"0.9584, 0.9657, 0.9738","class_weighting=balanced, colsample_bytree=0.6807, learning_rate=0.236, max_depth=6, min_child_weight=1, n_estimators=300, reg_lambda=0.5, subsample=0.7748",0.0061003960490216835

@@ -1,0 +1,9 @@
+family,rows
+BENIGN,416318
+DoS,43286
+DDoS,28603
+PortScan,1566
+Bot,1153
+Brute Force,7322
+Web Attack,1714
+Rare,38

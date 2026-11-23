@@ -1,0 +1,9 @@
+|                                         |   value |
+|:----------------------------------------|--------:|
+| rows before cleaning                    | 2830743 |
+| +/-inf values -> NaN                    |    4376 |
+| NaN values (median-imputed in pipeline) |    5734 |
+| invalid negatives clipped to 0          |    3545 |
+| duplicate rows removed                  |  630963 |
+| rows with conflicting labels (kept)     |     622 |
+| rows after cleaning                     | 2199780 |

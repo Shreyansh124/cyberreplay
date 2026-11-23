@@ -1,0 +1,19 @@
+{
+  "model": "DecisionTree",
+  "best_params": {
+    "class_weighting": "balanced",
+    "criterion": "entropy",
+    "max_depth": null,
+    "max_features": 0.8,
+    "min_samples_leaf": 2,
+    "min_samples_split": 9
+  },
+  "best_score": 0.9493675874764312,
+  "best_fold_scores": [
+    0.9559410872932301,
+    0.92287497437699,
+    0.969286700759074
+  ],
+  "search_seconds": 378.66706919670105,
+  "n_iter": 30
+}
